@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import ScrollToTop from "@/components/ScrollToTop";
 import Aoscompo from "@/utils/aos";
 import ConditionalSiteLayout from "@/components/Layout/ConditionalSiteLayout";
+import ToasterContext from "@/app/api/contex/ToasetContex";
 
 const font = DM_Sans({ subsets: ["latin"] });
 
@@ -24,6 +25,7 @@ export default function RootLayout({
             <ConditionalSiteLayout>{children}</ConditionalSiteLayout>
           </Aoscompo>
           <ScrollToTop />
+          <ToasterContext />
         </ThemeProvider>
       </body>
     </html>

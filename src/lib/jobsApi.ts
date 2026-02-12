@@ -1,17 +1,15 @@
 /**
- * Jobs API – replace with your real endpoints when ready.
+ * Jobs API – integrates frontend Job list with real backend endpoints.
+ *
+ * Backend:
+ *  - GET    /jobs                          → job catalog
+ *  - GET    /user-jobs                    → user's saved/applied jobs (with job nested)
+ *  - POST   /user-jobs                    → create saved job for user
+ *  - POST   /user-jobs/{id}/submit        → mark as submitted
+ *  - DELETE /user-jobs/{id}               → remove from saved jobs
  */
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
-
-export const JOBS_ENDPOINTS = {
-  list: "/jobs",
-  saved: "/jobs/saved",
-  attach: (jobId: string | number) => `/jobs/${jobId}/attach`,
-  apply: (jobId: string | number) => `/jobs/${jobId}/apply`,
-  save: (jobId: string | number) => `/jobs/${jobId}/save`,
-  unsave: (jobId: string | number) => `/jobs/${jobId}/unsave`,
-} as const;
+import { backendApi } from "./axios";
 
 export interface JobItem {
   id: number | string;
@@ -22,6 +20,8 @@ export interface JobItem {
   salary: string;
   tags: string[];
   match?: "Good match" | "Average" | "Low";
+  /** Internal: user_job id when this job is saved for the current user */
+  userJobId?: number;
 }
 
 export interface JobsFilters {
@@ -30,56 +30,125 @@ export interface JobsFilters {
   remoteOnly?: boolean;
 }
 
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// Backend shapes
+interface JobResponse {
+  id: number;
+  title: string;
+  company: string;
+  location: string | null;
+  description: string | null;
+  job_url: string | null;
+  salary_range: string | null;
+  job_type: string | null;
+  source: string | null;
+  external_id?: string | null;
+}
 
-const MOCK_JOBS: JobItem[] = [
-  { id: 1, title: "Senior React Engineer", company: "Acme Labs", location: "Remote · Europe", type: "Full‑time", salary: "$110k – $140k", tags: ["React", "TypeScript", "Next.js"], match: "Good match" },
-  { id: 2, title: "Backend Engineer (Python / Django)", company: "Nova Systems", location: "Remote · US", type: "Full‑time", salary: "$120k – $150k", tags: ["Python", "Django", "PostgreSQL"], match: "Good match" },
-  { id: 3, title: "Full‑stack TypeScript Engineer", company: "StackFlow", location: "Hybrid · Berlin", type: "Hybrid", salary: "€80k – €100k", tags: ["React", "Node.js", "TypeScript"], match: "Good match" },
-  { id: 4, title: "Frontend Lead", company: "DataCo", location: "Remote", type: "Full‑time", salary: "€90k – €120k", tags: ["React", "TypeScript"], match: "Average" },
-];
+interface UserJobWithJob {
+  id: number;
+  user_id: number;
+  job_id: number;
+  status: string;
+  notes: string | null;
+  resume_path: string | null;
+  cover_letter_path: string | null;
+  applied_at: string | null;
+  created_at: string;
+  updated_at: string | null;
+  job: JobResponse;
+}
+
+function mapJobToItem(job: JobResponse): JobItem {
+  return {
+    id: job.id,
+    title: job.title,
+    company: job.company,
+    location: job.location ?? "Remote / Flexible",
+    type: job.job_type ?? "Unknown",
+    salary: job.salary_range ?? "",
+    // Simple tags: company + type + source for now
+    tags: [job.company, job.job_type, job.source].filter((v): v is string => !!v),
+  };
+}
+
+function mapUserJobToItem(uj: UserJobWithJob): JobItem {
+  const base = mapJobToItem(uj.job);
+  return {
+    ...base,
+    userJobId: uj.id,
+  };
+}
 
 export async function fetchJobs(filters?: JobsFilters): Promise<JobItem[]> {
-  await delay(350);
-  // const { data } = await api.get(BASE + JOBS_ENDPOINTS.list, { params: filters });
-  // return data;
-  let list = [...MOCK_JOBS];
-  if (filters?.keyword) {
-    const k = filters.keyword.toLowerCase();
-    list = list.filter((j) => j.title.toLowerCase().includes(k) || j.company.toLowerCase().includes(k) || j.tags.some((t) => t.toLowerCase().includes(k)));
-  }
-  if (filters?.location) {
-    const l = filters.location.toLowerCase();
-    list = list.filter((j) => j.location.toLowerCase().includes(l));
-  }
+  const params: Record<string, unknown> = {};
+  if (filters?.keyword) params.query = filters.keyword;
+  if (filters?.location) params.location = filters.location;
+
+  const { data } = await backendApi.get<JobResponse[]>("/jobs", { params });
+  let list = data.map(mapJobToItem);
+
   if (filters?.remoteOnly) {
     list = list.filter((j) => j.location.toLowerCase().includes("remote"));
   }
+
   return list;
 }
 
 export async function fetchSavedJobs(): Promise<JobItem[]> {
-  await delay(300);
-  // return (await api.get(BASE + JOBS_ENDPOINTS.saved)).data;
-  return MOCK_JOBS.slice(0, 2);
+  const { data } = await backendApi.get<UserJobWithJob[]>("/user-jobs", {
+    params: { status_filter: "saved", skip: 0, limit: 100 },
+  });
+  return data.map(mapUserJobToItem);
 }
 
+/**
+ * Save job to favorites (creates a UserJob row).
+ * Returns the created/ existing user_job id so the caller can track it.
+ */
+export async function saveJobToFavorites(jobId: string | number): Promise<{ userJobId: number }> {
+  const numericId = Number(jobId);
+  const { data } = await backendApi.post<UserJobWithJob>(
+    "/user-jobs",
+    { job_id: numericId },
+    { toastSuccessMessage: "Saved to favorites." },
+  );
+  return { userJobId: data.id };
+}
+
+/**
+ * Unsave job by its UserJob id.
+ */
+export async function unsaveJob(userJobId: number): Promise<void> {
+  await backendApi.delete(`/user-jobs/${userJobId}`, {
+    toastSuccessMessage: "Removed from favorites.",
+  });
+}
+
+/**
+ * Apply once – ensure there's a UserJob, then mark it as submitted.
+ */
+export async function applyOnce(jobId: string | number, existingUserJobId?: number): Promise<void> {
+  let userJobId = existingUserJobId;
+  if (!userJobId) {
+    const created = await backendApi.post<UserJobWithJob>("/user-jobs", {
+      job_id: Number(jobId),
+    });
+    userJobId = created.data.id;
+  }
+
+  await backendApi.post(
+    `/user-jobs/${userJobId}/submit`,
+    {},
+    { toastSuccessMessage: "Application submitted." },
+  );
+}
+
+/**
+ * Attaching jobs to automations is still mocked until backend automations are wired.
+ */
 export async function attachJobToAutomation(jobId: string | number, automationId: string): Promise<void> {
-  await delay(300);
-  // await api.post(BASE + JOBS_ENDPOINTS.attach(jobId), { automationId });
+  void jobId;
+  void automationId;
+  // TODO: integrate with automations API when available
 }
 
-export async function applyOnce(jobId: string | number): Promise<void> {
-  await delay(400);
-  // await api.post(BASE + JOBS_ENDPOINTS.apply(jobId));
-}
-
-export async function saveJobToFavorites(jobId: string | number): Promise<void> {
-  await delay(250);
-  // await api.post(BASE + JOBS_ENDPOINTS.save(jobId));
-}
-
-export async function unsaveJob(jobId: string | number): Promise<void> {
-  await delay(250);
-  // await api.post(BASE + JOBS_ENDPOINTS.unsave(jobId));
-}

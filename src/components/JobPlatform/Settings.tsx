@@ -31,6 +31,9 @@ const Settings: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -55,8 +58,12 @@ const Settings: React.FC = () => {
 
   const handleSaveAccount = async () => {
     setSavingAccount(true);
+    setMessage(null);
     try {
-      await saveAccount({ displayName, username });
+      const res = await saveAccount({ displayName, username });
+      setData(res);
+      setDisplayName(res.displayName);
+      setUsername(res.username);
       showMsg("Account updated");
     } catch (e) {
       showMsg(e instanceof Error ? e.message : "Failed to save");
@@ -67,9 +74,12 @@ const Settings: React.FC = () => {
 
   const handleUpdateEmail = async () => {
     setSavingEmail(true);
+    setMessage(null);
     try {
-      await updateEmail(email);
-      showMsg("Email update requested");
+      const res = await updateEmail(email);
+      setData(res);
+      setEmail(res.email);
+      showMsg("Email updated");
     } catch (e) {
       showMsg(e instanceof Error ? e.message : "Failed to update email");
     } finally {
@@ -87,10 +97,22 @@ const Settings: React.FC = () => {
   };
 
   const handleChangePassword = async () => {
+    if (newPassword.length < 8) {
+      showMsg("New password must be at least 8 characters");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      showMsg("New passwords do not match");
+      return;
+    }
     setChangingPassword(true);
+    setMessage(null);
     try {
-      await changePassword("current", "newPassword");
-      showMsg("Password changed (wire real form + API)");
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      showMsg("Password changed");
     } catch (e) {
       showMsg(e instanceof Error ? e.message : "Failed to change password");
     } finally {
@@ -100,11 +122,13 @@ const Settings: React.FC = () => {
 
   const handleEnable2FA = async () => {
     setEnabling2FA(true);
+    setMessage(null);
     try {
       await enable2FA();
-      showMsg("2FA setup started (wire real flow)");
+      if (data) setData({ ...data, twoFactorEnabled: true });
+      showMsg("2FA enabled");
     } catch (e) {
-      showMsg(e instanceof Error ? e.message : "Failed");
+      showMsg(e instanceof Error ? e.message : "Failed to enable 2FA");
     } finally {
       setEnabling2FA(false);
     }
@@ -113,9 +137,15 @@ const Settings: React.FC = () => {
   const handleDeleteAccount = async () => {
     if (deleteConfirm !== "DELETE") return;
     setDeleting(true);
+    setMessage(null);
     try {
       await deleteAccount(deleteConfirm);
-      showMsg("Account deletion requested (wire real API)");
+      showMsg("Account deactivated. Redirecting…");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("crypgo_authed");
+        setTimeout(() => window.location.href = "/signin", 1500);
+      }
     } catch (e) {
       showMsg(e instanceof Error ? e.message : "Failed to delete");
     } finally {
@@ -230,15 +260,51 @@ const Settings: React.FC = () => {
             </h2>
             <div className="space-y-4">
               <div className="rounded-xl border border-dark_border bg-black/20 p-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-3">
-                    <Key className="h-4 w-4 text-primary" />
+                    <Key className="h-4 w-4 text-primary shrink-0" />
                     <div>
                       <p className="text-sm font-medium text-white">Password</p>
-                      <p className="text-xs text-muted">{data?.passwordLastChanged ?? "Last changed 30 days ago"}</p>
+                      <p className="text-xs text-muted">{data?.passwordLastChanged ?? "Never changed"}</p>
                     </div>
                   </div>
-                  <Button variant="secondary" className="text-sm px-4 py-2 w-full sm:w-auto" onClick={handleChangePassword} disabled={changingPassword}>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div>
+                      <label className="mb-1 block text-xs text-muted">Current password</label>
+                      <input
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className={inputClass}
+                        autoComplete="current-password"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-muted">New password</label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className={inputClass}
+                        autoComplete="new-password"
+                        minLength={8}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-muted">Confirm new password</label>
+                      <input
+                        type="password"
+                        value={confirmNewPassword}
+                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className={inputClass}
+                        autoComplete="new-password"
+                      />
+                    </div>
+                  </div>
+                  <Button variant="secondary" className="text-sm px-4 py-2 w-full sm:w-auto" onClick={handleChangePassword} disabled={changingPassword || !currentPassword || !newPassword || !confirmNewPassword}>
                     {changingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : "Change password"}
                   </Button>
                 </div>

@@ -4,7 +4,7 @@ import { portfolioData } from "@/app/api/data";
 import { motion } from "framer-motion";
 import { getImagePrefix } from "@/utils/utils";
 import PortfolioCard from "./PortfolioCard";
-import { GraduationCap, Code, Laptop, Code2, BarChart2, BarChart3, BrainCircuit } from "lucide-react";
+import { Briefcase, Zap, Target, LayoutGrid } from "lucide-react";
 
 const Portfolio = () => {
   return (
@@ -22,30 +22,30 @@ const Portfolio = () => {
            <div className="relative flex flex-wrap justify-center gap-5">
           <div className="relative z-10">
             <PortfolioCard
-              title="React"
-              subheading="Beginner to Advanced"
-              price="99"
-              percentage="10"
-              icon={<GraduationCap />}
+              title="Saved jobs"
+              subheading="One dashboard, all boards"
+              value="All boards"
+              badge="Tracked in one place"
+              icon={<Briefcase className="h-6 w-6 text-primary" />}
             />
           </div>
           <div className="relative mt-20">
             <PortfolioCard
-              title="Data Science"
-              subheading="Beginner to Advanced"
-              price="99"
-              percentage="10"
-              icon={<BrainCircuit />}
+              title="Smart automations"
+              subheading="Set once, apply everywhere"
+              value="24/7"
+              badge="Auto-apply to matches"
+              icon={<Zap className="h-6 w-6 text-primary" />}
             />
           </div>
           <div className="absolute -top-10 left-1/2 ml-4">
-            <div className="w-20 h-20 rounded-xl bg-gray-800 flex items-center justify-center">
-              <Code2 />
+            <div className="w-20 h-20 rounded-xl bg-gray-800 flex items-center justify-center text-primary">
+              <Target className="h-8 w-8" />
             </div>
           </div>
           <div className="absolute -bottom-10 right-1/2 mr-4">
-            <div className="w-20 h-20 rounded-xl bg-gray-800 flex items-center justify-center">
-              <BarChart3 />
+            <div className="w-20 h-20 rounded-xl bg-gray-800 flex items-center justify-center text-primary">
+              <LayoutGrid className="h-8 w-8" />
             </div>
           </div>
         </div>

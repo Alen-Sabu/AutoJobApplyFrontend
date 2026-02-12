@@ -1,10 +1,10 @@
 /**
- * Setup / KYC API – resume + required details before applying to jobs or creating automations.
- * Dummy implementation uses localStorage; replace with real endpoints when ready.
+ * Setup API – onboarding: personal details, resume upload, completion.
+ * Uses backend API with auth.
  */
+import { backendApi } from "./axios";
 
-const SETUP_COMPLETE_KEY = "crypgo_setup_complete";
-const SETUP_DATA_KEY = "crypgo_setup_data";
+const SETUP_BASE = "/setup";
 
 export interface SetupPersonalDetails {
   fullName: string;
@@ -19,7 +19,6 @@ export interface SetupPersonalDetails {
 export interface SetupResume {
   fileName: string;
   uploadedAt: string;
-  /** Dummy: no real file URL */
   url?: string;
 }
 
@@ -33,119 +32,132 @@ export interface SetupStatus {
   data: SetupData | null;
 }
 
-const defaultPersonal: SetupPersonalDetails = {
-  fullName: "",
-  email: "",
-  phone: "",
-  location: "",
-  linkedInUrl: "",
-  yearsExperience: "",
-  topSkills: "",
-};
-
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-function getStoredComplete(): boolean {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem(SETUP_COMPLETE_KEY) === "1";
+/** Backend response (snake_case) */
+interface SetupPersonalDetailsResponse {
+  full_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  location?: string | null;
+  linkedin_url?: string | null;
+  years_experience?: string | null;
+  top_skills?: string | null;
 }
 
-function getStoredData(): SetupData | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(SETUP_DATA_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as SetupData;
-  } catch {
-    return null;
-  }
+interface SetupResumeResponse {
+  fileName: string;
+  uploadedAt: string;
+  url?: string;
 }
 
-function setStoredComplete(complete: boolean): void {
-  if (typeof window === "undefined") return;
-  if (complete) localStorage.setItem(SETUP_COMPLETE_KEY, "1");
-  else localStorage.removeItem(SETUP_COMPLETE_KEY);
+interface SetupDataResponse {
+  personal: SetupPersonalDetailsResponse;
+  resume: SetupResumeResponse | null;
 }
 
-function setStoredData(data: SetupData | null): void {
-  if (typeof window === "undefined") return;
-  if (data) localStorage.setItem(SETUP_DATA_KEY, JSON.stringify(data));
-  else localStorage.removeItem(SETUP_DATA_KEY);
+interface SetupStatusResponse {
+  complete: boolean;
+  data: SetupDataResponse | null;
 }
 
-/**
- * Returns current setup status (complete flag + saved data).
- * Safe to call on client only; uses localStorage in dummy mode.
- */
-export function getSetupStatus(): SetupStatus {
-  const complete = getStoredComplete();
-  const data = getStoredData();
-  return { complete, data };
+function mapPersonalToFrontend(p: SetupPersonalDetailsResponse): SetupPersonalDetails {
+  return {
+    fullName: p.full_name ?? "",
+    email: p.email ?? "",
+    phone: p.phone ?? "",
+    location: p.location ?? "",
+    linkedInUrl: p.linkedin_url ?? "",
+    yearsExperience: p.years_experience ?? "",
+    topSkills: p.top_skills ?? "",
+  };
 }
 
-/**
- * Async version for consistency with other APIs; resolves after a short delay.
- */
+function mapDataToFrontend(d: SetupDataResponse | null): SetupData | null {
+  if (!d) return null;
+  return {
+    personal: mapPersonalToFrontend(d.personal),
+    resume: d.resume
+      ? {
+          fileName: d.resume.fileName,
+          uploadedAt: d.resume.uploadedAt,
+          url: d.resume.url,
+        }
+      : null,
+  };
+}
+
+/** Request body for PUT personal (snake_case for backend) */
+function personalToBackend(p: Partial<SetupPersonalDetails>): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (p.fullName !== undefined) out.full_name = p.fullName;
+  if (p.email !== undefined) out.email = p.email;
+  if (p.phone !== undefined) out.phone = p.phone;
+  if (p.location !== undefined) out.location = p.location;
+  if (p.linkedInUrl !== undefined) out.linkedin_url = p.linkedInUrl;
+  if (p.yearsExperience !== undefined) out.years_experience = p.yearsExperience;
+  if (p.topSkills !== undefined) out.top_skills = p.topSkills;
+  return out;
+}
+
 export async function fetchSetupStatus(): Promise<SetupStatus> {
-  await delay(150);
-  return getSetupStatus();
+  const { data } = await backendApi.get<SetupStatusResponse>(`${SETUP_BASE}/status`);
+  return {
+    complete: data.complete,
+    data: mapDataToFrontend(data.data),
+  };
+}
+
+export async function savePersonalDetails(
+  personal: Partial<SetupPersonalDetails>
+): Promise<SetupData> {
+  const payload = personalToBackend(personal);
+  const { data } = await backendApi.put<SetupDataResponse>(`${SETUP_BASE}/personal`, payload, {
+    toastSuccessMessage: "Personal details saved.",
+  });
+  return mapDataToFrontend(data)!;
 }
 
 /**
- * Save personal details (step 1). Does not complete setup until resume is uploaded and user submits.
+ * Upload or replace resume. Same API for first upload and changing resume.
+ * @param file - PDF or DOC/DOCX file (max 5MB)
+ * @param successMessage - Optional toast message (default: "Resume uploaded.")
  */
-export async function savePersonalDetails(personal: Partial<SetupPersonalDetails>): Promise<SetupData> {
-  await delay(250);
-  const existing = getStoredData();
-  const nextPersonal: SetupPersonalDetails = {
-    ...defaultPersonal,
-    ...existing?.personal,
-    ...personal,
+export async function uploadResume(
+  file: File,
+  successMessage: string = "Resume uploaded."
+): Promise<SetupResume> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await backendApi.post<SetupResumeResponse>(`${SETUP_BASE}/resume`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    toastSuccessMessage: successMessage,
+  });
+  return {
+    fileName: data.fileName,
+    uploadedAt: data.uploadedAt,
+    url: data.url,
   };
-  const next: SetupData = {
-    personal: nextPersonal,
-    resume: existing?.resume ?? null,
-  };
-  setStoredData(next);
-  return next;
 }
 
-/**
- * Dummy resume upload: accepts a file name and stores it. In production, upload file and store URL.
- */
-export async function uploadResume(file: File): Promise<SetupResume> {
-  await delay(400);
-  const resume: SetupResume = {
-    fileName: file.name,
-    uploadedAt: new Date().toISOString(),
-    url: undefined,
-  };
-  const existing = getStoredData();
-  const next: SetupData = {
-    personal: existing?.personal ?? { ...defaultPersonal },
-    resume,
-  };
-  setStoredData(next);
-  return resume;
-}
-
-/**
- * Mark setup as complete. Call after user has filled personal details and uploaded resume.
- */
 export async function completeSetup(): Promise<void> {
-  await delay(300);
-  const data = getStoredData();
-  if (!data?.resume) throw new Error("Please upload your resume before completing setup.");
-  if (!data.personal.fullName?.trim() || !data.personal.email?.trim()) {
-    throw new Error("Please fill in required personal details (name and email).");
-  }
-  setStoredComplete(true);
+  await backendApi.post(`${SETUP_BASE}/complete`, {}, {
+    toastSuccessMessage: "Setup complete. Welcome!",
+  });
 }
 
 /**
- * Reset setup (for testing or "start over"). Clears completion flag and optionally data.
+ * Download the user's resume (authenticated). Returns blob for PDF/view or download.
  */
-export function resetSetup(clearData?: boolean): void {
-  setStoredComplete(false);
-  if (clearData) setStoredData(null);
+export async function downloadResume(): Promise<Blob> {
+  const { data } = await backendApi.get<Blob>(`${SETUP_BASE}/resume`, {
+    responseType: "blob",
+  });
+  return data;
+}
+
+/**
+ * Base URL for setup resume (for building download link with auth).
+ * Prefer using downloadResume() and creating a blob URL for viewing.
+ */
+export function getResumeDownloadApiPath(): string {
+  return SETUP_BASE + "/resume";
 }

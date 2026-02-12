@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import SocialSignIn from "../SocialSignIn";
 import Loader from "@/components/Common/Loader";
+import { login } from "@/lib/authApi";
 
 const inputClass =
   "w-full rounded-lg border border-dark_border bg-black/20 px-4 py-3 text-sm text-white placeholder:text-muted outline-none transition focus:border-primary focus:ring-1 focus:ring-primary";
@@ -17,11 +18,22 @@ const Signin = ({ onSuccess }: { onSuccess?: () => void }) => {
   });
   const [loading, setLoading] = useState(false);
 
-  const loginUser = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    router.push("/dashboard");
-    return;
+    try {
+      const { access_token } = await login(loginData.email, loginData.password);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("access_token", access_token);
+        localStorage.setItem("crypgo_authed", "1");
+      }
+      onSuccess?.();
+      router.push("/dashboard");
+    } catch {
+      // Error toast shown by axios interceptor (e.g. "Invalid email or password" or API detail)
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -37,7 +49,7 @@ const Signin = ({ onSuccess }: { onSuccess?: () => void }) => {
         </span>
       </div>
 
-      <form onSubmit={loginUser} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="signin-email" className="sr-only">
             Email

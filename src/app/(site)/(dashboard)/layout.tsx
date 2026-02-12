@@ -16,11 +16,13 @@ import {
   Menu,
   X,
   ShieldCheck,
+  FileText,
 } from "lucide-react";
 
 const navIcons: Record<string, React.ReactNode> = {
   Dashboard: <LayoutDashboard className="h-4 w-4" />,
   Profile: <User className="h-4 w-4" />,
+  Resume: <FileText className="h-4 w-4" />,
   Setup: <ShieldCheck className="h-4 w-4" />,
   Settings: <Settings className="h-4 w-4" />,
   Jobs: <Briefcase className="h-4 w-4" />,
@@ -31,6 +33,7 @@ const navIcons: Record<string, React.ReactNode> = {
 function handleSignOut() {
   if (typeof window !== "undefined") {
     localStorage.removeItem("crypgo_authed");
+    localStorage.removeItem("access_token");
     window.location.href = "/";
   }
 }

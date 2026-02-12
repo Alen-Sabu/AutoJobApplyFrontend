@@ -1,5 +1,54 @@
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
 
+declare module "axios" {
+  interface AxiosRequestConfig {
+    toastSuccessMessage?: string;
+  }
+}
+
+/** Only import toast when in browser to avoid SSR issues */
+function showErrorToast(message: string) {
+  if (typeof window !== "undefined") {
+    import("react-hot-toast").then(({ default: toast }) => toast.error(message));
+  }
+}
+
+function showSuccessToast(message: string) {
+  if (typeof window !== "undefined") {
+    import("react-hot-toast").then(({ default: toast }) => toast.success(message));
+  }
+}
+
+function getSuccessMessage(config: InternalAxiosRequestConfig, method: string): string | null {
+  const custom = config.toastSuccessMessage;
+  if (custom) return custom;
+  const m = (method || "").toLowerCase();
+  if (m === "put" || m === "patch" || m === "delete") return "Saved successfully.";
+  if (m === "post") return null; // Let the caller show a specific message for POST (e.g. register).
+  return null;
+}
+
+/** Extract user-facing message from API error (FastAPI detail can be string or array of { msg } or strings) */
+function getErrorMessage(err: unknown): string {
+  const ax = err as { response?: { data?: { detail?: string | unknown[] } }; message?: string };
+  const detail = ax?.response?.data?.detail;
+  if (detail != null) {
+    if (Array.isArray(detail)) {
+      const first = detail[0];
+      if (typeof first === "string") return first;
+      const withMsg = first as { msg?: string };
+      if (typeof withMsg?.msg === "string") return withMsg.msg;
+    }
+    if (typeof detail === "string") return detail;
+  }
+  const status = (err as { response?: { status?: number } })?.response?.status;
+  if (status === 401) return "Invalid email or password.";
+  if (status === 403) return "You don't have permission to do this.";
+  if (status === 404) return "Resource not found.";
+  if (status && status >= 500) return "Server error. Please try again later.";
+  return (err as Error)?.message ?? "An error occurred.";
+}
+
 /**
  * Base URL for same-origin requests (Next.js API routes).
  * In the browser, "" keeps requests relative to the current origin.
@@ -13,7 +62,7 @@ const getAppBaseURL = () => {
  * Base URL for the external backend API.
  */
 const getBackendBaseURL = () => {
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 };
 
 const defaultHeaders = {
@@ -45,15 +94,28 @@ backendApi.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// Reject with error so callers can handle (e.g. toast in component)
 api.interceptors.response.use(
-  (res) => res,
-  (err) => Promise.reject(err)
+  (res) => {
+    const msg = getSuccessMessage(res.config, res.config.method ?? "");
+    if (msg) showSuccessToast(msg);
+    return res;
+  },
+  (err) => {
+    showErrorToast(getErrorMessage(err));
+    return Promise.reject(err);
+  }
 );
 
 backendApi.interceptors.response.use(
-  (res) => res,
-  (err) => Promise.reject(err)
+  (res) => {
+    const msg = getSuccessMessage(res.config, res.config.method ?? "");
+    if (msg) showSuccessToast(msg);
+    return res;
+  },
+  (err) => {
+    showErrorToast(getErrorMessage(err));
+    return Promise.reject(err);
+  }
 );
 
 // —— Helpers for app API (same-origin) ——

@@ -3,6 +3,7 @@ import { HeaderItem } from "@/types/menu";
 export const dashboardNavData: HeaderItem[] = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Profile", href: "/profile" },
+  { label: "Resume", href: "/resume" },
   { label: "Setup", href: "/setup" },
   { label: "Settings", href: "/settings" },
   { label: "Jobs", href: "/jobs" },

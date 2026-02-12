@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Logo from "@/components/Layout/Header/Logo";
+import RedirectIfAuthed from "@/components/Auth/RedirectIfAuthed";
 
 export default function AuthLayout({
   children,
@@ -7,6 +8,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
+    <RedirectIfAuthed>
     <div className="min-h-screen bg-darkmode flex flex-col lg:flex-row">
       {/* Left panel: branding (desktop) */}
       <div className="hidden lg:flex lg:w-[45%] xl:w-[50%] flex-col justify-between p-10 xl:p-16 border-r border-dark_border bg-gradient-to-br from-dark_grey/80 to-darkmode">
@@ -46,5 +48,6 @@ export default function AuthLayout({
         </main>
       </div>
     </div>
+    </RedirectIfAuthed>
   );
 }

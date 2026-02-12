@@ -1,9 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import Button from "@/components/Common/Button";
-import { Briefcase, FileText, User, Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { Briefcase, FileText, User, Sparkles, Loader2, AlertCircle, Download, ExternalLink, Upload } from "lucide-react";
 import { fetchProfile, saveProfile, type ProfileData } from "@/lib/profileApi";
+import { fetchSetupStatus, downloadResume, uploadResume, type SetupResume } from "@/lib/setupApi";
+
+const ACCEPT_RESUME = ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 const inputClass =
   "w-full rounded-lg border border-dark_border bg-black/30 px-3 py-2 text-sm text-white placeholder:text-muted focus:outline-none focus:border-primary";
@@ -11,7 +15,11 @@ const inputClass =
 const Profile: React.FC = () => {
   const [data, setData] = useState<ProfileData | null>(null);
   const [form, setForm] = useState<Partial<ProfileData>>({});
+  const [setupResume, setSetupResume] = useState<SetupResume | null>(null);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [resumeUploading, setResumeUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const resumeFileInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -42,6 +50,42 @@ const Profile: React.FC = () => {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSetupStatus().then((s) => {
+      if (!cancelled && s.data?.resume) setSetupResume(s.data.resume);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleDownloadResume = async () => {
+    if (!setupResume) return;
+    setResumeLoading(true);
+    try {
+      const blob = await downloadResume();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = setupResume.fileName || "resume.pdf";
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setResumeLoading(false);
+    }
+  };
+
+  const handleChangeResume = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setResumeUploading(true);
+    uploadResume(file, "Resume updated.")
+      .then((res) => {
+        setSetupResume({ fileName: res.fileName, uploadedAt: res.uploadedAt, url: res.url });
+      })
+      .finally(() => setResumeUploading(false));
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -135,6 +179,70 @@ const Profile: React.FC = () => {
                   <li key={i}>• {pref}</li>
                 ))}
               </ul>
+            </div>
+
+            <div className="rounded-2xl border border-dark_border bg-dark_grey/70 p-5">
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+                <FileText className="h-4 w-4 text-primary" />
+                My resume
+              </h2>
+              {setupResume ? (
+                <div className="space-y-3">
+                  <input
+                    ref={resumeFileInputRef}
+                    type="file"
+                    accept={ACCEPT_RESUME}
+                    className="hidden"
+                    onChange={handleChangeResume}
+                  />
+                  <p className="text-sm text-white break-all">{setupResume.fileName}</p>
+                  <p className="text-xs text-muted">
+                    Uploaded {setupResume.uploadedAt ? new Date(setupResume.uploadedAt).toLocaleDateString() : ""}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Link href="/resume">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="text-sm px-3 py-1.5 inline-flex items-center gap-1.5"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        View resume
+                      </Button>
+                    </Link>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="text-sm px-3 py-1.5 inline-flex items-center gap-1.5"
+                      onClick={() => resumeFileInputRef.current?.click()}
+                      disabled={resumeUploading}
+                    >
+                      {resumeUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                      Change resume
+                    </Button>
+                    <Button
+                      type="button"
+                      className="text-sm px-3 py-1.5 inline-flex items-center gap-1.5"
+                      onClick={handleDownloadResume}
+                      disabled={resumeLoading}
+                    >
+                      {resumeLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                      Download
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-muted mb-3">
+                    No resume uploaded yet. Complete setup to upload your resume for job applications.
+                  </p>
+                  <Link href="/setup">
+                    <Button variant="secondary" className="text-sm px-3 py-1.5">
+                      Go to setup
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 

@@ -1,9 +1,12 @@
 /**
- * Admin API – replace BASE and use real endpoints when ready.
- * All functions use mock data; swap with api.get(BASE + ENDPOINTS.xyz) etc.
+ * Admin API – integrates admin UI with backend endpoints.
+ *
+ * NOTE: Only the Users section is wired to real APIs for now.
+ * Other parts (stats, jobs moderation, automations, playbooks, audit) still
+ * use mock data and can be swapped to real endpoints later.
  */
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+import { backendApi } from "./axios";
 const ADMIN_PREFIX = "/admin";
 
 export const ADMIN_ENDPOINTS = {
@@ -67,6 +70,12 @@ export interface AdminJob {
   company: string;
   status: "pending" | "approved" | "rejected";
   posted: string;
+  location?: string | null;
+  salary?: string | null;    // CTC / salary range
+  jobType?: string | null;
+  description?: string | null;
+  jobUrl?: string | null;
+  source?: string | null;
 }
 
 export interface AdminAutomation {
@@ -133,45 +142,103 @@ export async function fetchAdminAlerts(): Promise<AdminAlert[]> {
 }
 
 // —— Users ——
-export async function fetchAdminUsers(_params?: { search?: string; status?: string }): Promise<AdminUser[]> {
-  await delay(300);
-  return [
-    { id: 1, name: "Jane Doe", email: "jane@example.com", role: "user", status: "active", joined: "2024-01-15" },
-    { id: 2, name: "John Smith", email: "john@example.com", role: "user", status: "active", joined: "2024-02-01" },
-    { id: 3, name: "Alice Brown", email: "alice@example.com", role: "user", status: "suspended", joined: "2024-02-10" },
-    { id: 4, name: "Bob Wilson", email: "bob@example.com", role: "admin", status: "active", joined: "2023-12-01" },
-  ];
+export async function fetchAdminUsers(params?: { search?: string; status?: string }): Promise<AdminUser[]> {
+  const query: Record<string, string> = {};
+  if (params?.search) query.search = params.search;
+  if (params?.status && params.status !== "all") query.status = params.status;
+
+  const { data } = await backendApi.get<AdminUser[]>(ADMIN_ENDPOINTS.users, { params: query });
+  return data;
 }
 
 export async function suspendUser(userId: string | number): Promise<void> {
-  await delay(300);
-  // await api.post(BASE + ADMIN_ENDPOINTS.userSuspend(String(userId)));
+  await backendApi.post(
+    ADMIN_ENDPOINTS.userSuspend(String(userId)),
+    {},
+    { toastSuccessMessage: "User suspended." },
+  );
 }
 
 export async function activateUser(userId: string | number): Promise<void> {
-  await delay(300);
-  // await api.post(BASE + ADMIN_ENDPOINTS.userActivate(String(userId)));
+  await backendApi.post(
+    ADMIN_ENDPOINTS.userActivate(String(userId)),
+    {},
+    { toastSuccessMessage: "User activated." },
+  );
 }
 
 // —— Jobs ——
-export async function fetchAdminJobs(_params?: { search?: string; status?: string }): Promise<AdminJob[]> {
-  await delay(300);
-  return [
-    { id: 1, title: "Senior React Engineer", company: "Acme Labs", status: "pending", posted: "2024-03-01" },
-    { id: 2, title: "Backend Engineer", company: "Nova Systems", status: "approved", posted: "2024-02-28" },
-    { id: 3, title: "Full-stack TypeScript", company: "StackFlow", status: "approved", posted: "2024-02-27" },
-    { id: 4, title: "DevOps Engineer", company: "CloudCo", status: "pending", posted: "2024-03-02" },
-  ];
+export async function fetchAdminJobs(params?: { search?: string; status?: string }): Promise<AdminJob[]> {
+  const query: Record<string, string> = {};
+  if (params?.search) query.search = params.search;
+  if (params?.status && params.status !== "all") query.status = params.status;
+
+  const { data } = await backendApi.get<AdminJob[]>(ADMIN_ENDPOINTS.jobs, { params: query });
+  return data;
+}
+
+export async function createAdminJob(payload: {
+  title: string;
+  company: string;
+  location?: string;
+  salary?: string;
+  jobType?: string;
+  description?: string;
+  jobUrl?: string;
+  source?: string;
+  status?: "pending" | "approved" | "rejected";
+}): Promise<AdminJob> {
+  const { data } = await backendApi.post<AdminJob>(
+    ADMIN_ENDPOINTS.jobs,
+    payload,
+    { toastSuccessMessage: "Job created." },
+  );
+  return data;
+}
+
+export async function updateAdminJob(
+  id: string | number,
+  payload: {
+    title?: string;
+    company?: string;
+    location?: string;
+    salary?: string;
+    jobType?: string;
+    description?: string;
+    jobUrl?: string;
+    source?: string;
+    status?: "pending" | "approved" | "rejected";
+  },
+): Promise<AdminJob> {
+  const { data } = await backendApi.put<AdminJob>(
+    `${ADMIN_ENDPOINTS.jobs}/${id}`,
+    payload,
+    { toastSuccessMessage: "Job updated." },
+  );
+  return data;
+}
+
+export async function deleteAdminJob(id: string | number): Promise<void> {
+  await backendApi.delete(
+    `${ADMIN_ENDPOINTS.jobs}/${id}`,
+    { toastSuccessMessage: "Job deleted." },
+  );
 }
 
 export async function approveJob(jobId: string | number): Promise<void> {
-  await delay(280);
-  // await api.post(BASE + ADMIN_ENDPOINTS.jobApprove(String(jobId)));
+  await backendApi.post(
+    ADMIN_ENDPOINTS.jobApprove(String(jobId)),
+    {},
+    { toastSuccessMessage: "Job approved." },
+  );
 }
 
 export async function rejectJob(jobId: string | number): Promise<void> {
-  await delay(280);
-  // await api.post(BASE + ADMIN_ENDPOINTS.jobReject(String(jobId)));
+  await backendApi.post(
+    ADMIN_ENDPOINTS.jobReject(String(jobId)),
+    {},
+    { toastSuccessMessage: "Job rejected." },
+  );
 }
 
 // —— Automations ——

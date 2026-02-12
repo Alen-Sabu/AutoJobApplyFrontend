@@ -28,6 +28,7 @@ const JobList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string | number>>(new Set());
+  const [savedMap, setSavedMap] = useState<Map<string | number, number>>(new Map());
   const [actioningId, setActioningId] = useState<string | number | null>(null);
   const [attachModal, setAttachModal] = useState<JobItem | null>(null);
   const [setupComplete, setSetupComplete] = useState<boolean | null>(null);
@@ -52,7 +53,18 @@ const JobList: React.FC = () => {
   }, [keyword, location, remoteOnly, savedOnly]);
 
   useEffect(() => {
-    fetchSavedJobs().then((saved) => setSavedIds(new Set(saved.map((j) => j.id)))).catch(() => {});
+    fetchSavedJobs()
+      .then((saved) => {
+        setSavedIds(new Set(saved.map((j) => j.id)));
+        setSavedMap(
+          new Map(
+            saved
+              .filter((j) => j.userJobId != null)
+              .map((j) => [j.id, j.userJobId!] as [string | number, number]),
+          ),
+        );
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -64,15 +76,27 @@ const JobList: React.FC = () => {
     setActioningId(job.id);
     try {
       if (savedIds.has(job.id)) {
-        await unsaveJob(job.id);
+        const userJobId = savedMap.get(job.id);
+        if (!userJobId) return;
+        await unsaveJob(userJobId);
         setSavedIds((prev) => {
           const next = new Set(prev);
           next.delete(job.id);
           return next;
         });
+        setSavedMap((prev) => {
+          const next = new Map(prev);
+          next.delete(job.id);
+          return next;
+        });
       } else {
-        await saveJobToFavorites(job.id);
+        const { userJobId } = await saveJobToFavorites(job.id);
         setSavedIds((prev) => new Set(prev).add(job.id));
+        setSavedMap((prev) => {
+          const next = new Map(prev);
+          next.set(job.id, userJobId);
+          return next;
+        });
       }
     } finally {
       setActioningId(null);
@@ -83,7 +107,8 @@ const JobList: React.FC = () => {
     if (actioningId !== null) return;
     setActioningId(job.id);
     try {
-      await applyOnce(job.id);
+      const userJobId = savedMap.get(job.id);
+      await applyOnce(job.id, userJobId);
     } finally {
       setActioningId(null);
     }

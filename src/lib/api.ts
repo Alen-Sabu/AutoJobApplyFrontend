@@ -1,13 +1,7 @@
-import { backendApi } from "./axios";
+import { login, type Token } from "./authApi";
 
-export async function loginUser(email: string, password: string) {
-  const res = await backendApi.post("/token", { email, password });
-  return res.data;
+export async function loginUser(email: string, password: string): Promise<Token> {
+  return login(email, password);
 }
 
-export async function refreshToken(refresh: string) {
-  const res = await backendApi.post("/token/refresh", { refresh });
-  return res.data;
-}
-
-export { backendApi };
+export { backendApi } from "./axios";

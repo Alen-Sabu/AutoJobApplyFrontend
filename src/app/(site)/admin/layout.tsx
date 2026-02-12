@@ -34,6 +34,7 @@ function handleAdminSignOut() {
   if (typeof window !== "undefined") {
     localStorage.removeItem("crypgo_admin");
     localStorage.removeItem("crypgo_authed");
+    localStorage.removeItem("access_token");
     window.location.href = "/";
   }
 }

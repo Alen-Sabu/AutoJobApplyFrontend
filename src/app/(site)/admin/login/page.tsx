@@ -4,10 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Shield, Loader } from "lucide-react";
-
-// Demo: in production, validate against your backend
-const DEMO_ADMIN_EMAIL = "admin@crypgo.com";
-const DEMO_ADMIN_PASSWORD = "admin123";
+import { loginAdmin } from "@/lib/authApi";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -16,23 +13,27 @@ export default function AdminLoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    // Demo check – replace with real API call in production
-    if (email === DEMO_ADMIN_EMAIL && password === DEMO_ADMIN_PASSWORD) {
+    try {
+      const token = await loginAdmin(email, password);
       if (typeof window !== "undefined") {
+        localStorage.setItem("access_token", token.access_token);
         localStorage.setItem("crypgo_authed", "1");
         localStorage.setItem("crypgo_admin", "1");
       }
       router.push("/admin");
-      return;
+    } catch (err) {
+      const message =
+        (err as any)?.response?.data?.detail ??
+        (err as Error).message ??
+        "Invalid admin credentials.";
+      setError(typeof message === "string" ? message : "Invalid admin credentials.");
+      setLoading(false);
     }
-
-    setError("Invalid admin credentials.");
-    setLoading(false);
   };
 
   return (
@@ -85,10 +86,6 @@ export default function AdminLoginPage() {
             Sign in to admin
           </button>
         </form>
-
-        <p className="mt-6 text-center text-xs text-muted">
-          Demo: {DEMO_ADMIN_EMAIL} / {DEMO_ADMIN_PASSWORD}
-        </p>
 
         <Link
           href="/"

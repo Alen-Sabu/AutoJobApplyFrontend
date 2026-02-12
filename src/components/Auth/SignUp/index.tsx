@@ -1,11 +1,10 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
 import SocialSignUp from "../SocialSignUp";
 import { useState } from "react";
 import Loader from "@/components/Common/Loader";
-import { api } from "@/lib/axios";
+import { register } from "@/lib/authApi";
 
 const inputClass =
   "w-full rounded-lg border border-dark_border bg-black/20 px-4 py-3 text-sm text-white placeholder:text-muted outline-none transition focus:border-primary focus:ring-1 focus:ring-primary";
@@ -17,20 +16,16 @@ const SignUp = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    const data = new FormData(e.currentTarget);
-    const finalData = Object.fromEntries(data.entries());
+    const form = e.currentTarget;
+    const email = (form.querySelector('[name="email"]') as HTMLInputElement)?.value ?? "";
+    const password = (form.querySelector('[name="password"]') as HTMLInputElement)?.value ?? "";
+    const full_name = (form.querySelector('[name="name"]') as HTMLInputElement)?.value?.trim() || undefined;
 
     try {
-      await api.post("/api/register", finalData);
-      toast.success("Account created. Please sign in.");
+      await register({ email, password, full_name: full_name ?? null });
       router.push("/signin");
-    } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ??
-        (err as Error).message ??
-        "Registration failed";
-      toast.error(message);
+    } catch {
+      // Toast shown by axios interceptor with API error message
     } finally {
       setLoading(false);
     }

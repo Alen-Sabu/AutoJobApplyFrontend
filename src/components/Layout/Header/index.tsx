@@ -17,10 +17,11 @@ const Header: React.FC = () => {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    setIsAuthed(!!localStorage.getItem("crypgo_authed"));
+    const authed = !!(localStorage.getItem("crypgo_authed") || localStorage.getItem("access_token"));
+    setIsAuthed(authed);
     setIsAdmin(localStorage.getItem("crypgo_admin") === "1");
     const onStorage = () => {
-      setIsAuthed(!!localStorage.getItem("crypgo_authed"));
+      setIsAuthed(!!(localStorage.getItem("crypgo_authed") || localStorage.getItem("access_token")));
       setIsAdmin(localStorage.getItem("crypgo_admin") === "1");
     };
     window.addEventListener("storage", onStorage);
@@ -30,6 +31,7 @@ const Header: React.FC = () => {
   const handleSignOut = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("crypgo_authed");
+      localStorage.removeItem("access_token");
       localStorage.removeItem("crypgo_admin");
       setIsAuthed(false);
       setIsAdmin(false);
