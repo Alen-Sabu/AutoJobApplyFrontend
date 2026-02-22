@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import Breadcrumb from "@/components/Common/Breadcrumb";
 import AdminSettings from "@/components/Admin/AdminSettings";
 
 export const metadata: Metadata = {
@@ -6,5 +7,13 @@ export const metadata: Metadata = {
 };
 
 export default function AdminSettingsPage() {
-  return <AdminSettings />;
+  return (
+    <>
+      <Breadcrumb
+        pageName="Settings"
+        pageDescription="Site-wide configuration: maintenance, registration, and limits."
+      />
+      <AdminSettings />
+    </>
+  );
 }

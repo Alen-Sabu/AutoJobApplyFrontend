@@ -3,16 +3,18 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Globe2, Link2, Pause, Play, Settings2, Loader2, AlertCircle, ShieldCheck } from "lucide-react";
+import { Globe2, Link2, Pause, Play, Settings2, Loader2, AlertCircle, ShieldCheck, Briefcase, Zap } from "lucide-react";
 import Button from "@/components/Common/Button";
 import {
   fetchAutomations,
   createAutomation,
   pauseAutomation,
   resumeAutomation,
+  runAutomation,
   type Automation,
   type CreateAutomationPayload,
 } from "@/lib/automationsApi";
+import toast from "react-hot-toast";
 import { fetchSetupStatus } from "@/lib/setupApi";
 
 const Automations: React.FC = () => {
@@ -26,7 +28,7 @@ const Automations: React.FC = () => {
     name: "",
     targetTitles: "",
     locations: "",
-    dailyLimit: "",
+    dailyLimit: 25,
     platforms: [],
     coverLetterTemplate: "",
   });
@@ -61,17 +63,31 @@ const Automations: React.FC = () => {
 
   const toggleStatus = async (a: Automation) => {
     if (actionId) return;
-    setActionId(a.id);
+    setActionId(String(a.id));
     try {
       if (a.status === "running") {
-        await pauseAutomation(a.id);
-        setAutomations((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: "paused" as const } : x)));
+        const updated = await pauseAutomation(a.id);
+        setAutomations((prev) => prev.map((x) => (x.id === a.id ? updated : x)));
       } else {
-        await resumeAutomation(a.id);
-        setAutomations((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: "running" as const } : x)));
+        const updated = await resumeAutomation(a.id);
+        setAutomations((prev) => prev.map((x) => (x.id === a.id ? updated : x)));
       }
     } catch (e) {
       showMsg(e instanceof Error ? e.message : "Action failed");
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleRunNow = async (a: Automation) => {
+    if (actionId) return;
+    setActionId(String(a.id));
+    try {
+      const result = await runAutomation(a.id);
+      toast.success(result.message);
+      await loadAutomations();
+    } catch {
+      // error toast handled by axios
     } finally {
       setActionId(null);
     }
@@ -94,7 +110,7 @@ const Automations: React.FC = () => {
     try {
       const created = await createAutomation(form);
       setAutomations((prev) => [...prev, created]);
-      setForm({ name: "", targetTitles: "", locations: "", dailyLimit: "", platforms: [], coverLetterTemplate: "" });
+      setForm({ name: "", targetTitles: "", locations: "", dailyLimit: 25, platforms: [], coverLetterTemplate: "" });
       showMsg("Automation created (paused). Start it from the list.");
     } catch (e) {
       showMsg(e instanceof Error ? e.message : "Failed to create");
@@ -152,7 +168,9 @@ const Automations: React.FC = () => {
           <div className="rounded-2xl border border-dark_border bg-dark_grey/70 p-5 md:p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-white">Existing automations</h2>
-              <p className="text-xs text-muted">{automations.length} active playbooks</p>
+              <p className="text-xs text-muted">
+                {automations.length} {automations.length === 1 ? "automation" : "automations"}
+              </p>
             </div>
 
             {loading && automations.length === 0 ? (
@@ -167,7 +185,7 @@ const Automations: React.FC = () => {
                     className="rounded-xl border border-dark_border bg-black/25 px-4 py-4 md:px-5 md:py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
                   >
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium text-white">{automation.name}</p>
                         <span
                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium border ${
@@ -179,8 +197,17 @@ const Automations: React.FC = () => {
                           <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${automation.status === "running" ? "bg-emerald-400" : "bg-amber-300"}`} />
                           {automation.status === "running" ? "Running" : "Paused"}
                         </span>
+                        {typeof automation.applicationsToday === "number" &&
+                          automation.applicationsToday >= automation.dailyLimit &&
+                          automation.dailyLimit > 0 && (
+                            <span className="inline-flex items-center rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/40 px-2.5 py-0.5 text-[11px] font-medium">
+                              Limit exceeded
+                            </span>
+                          )}
                       </div>
-                      <p className="text-xs text-muted">{automation.criteria}</p>
+                      <p className="text-xs text-muted">
+                        {[automation.targetTitles, automation.locations].filter(Boolean).join(" · ") || "—"}
+                      </p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {automation.platforms.map((platform) => (
                           <span key={platform} className="inline-flex items-center rounded-md bg-black/40 px-2.5 py-1 text-[11px] text-muted">
@@ -190,12 +217,30 @@ const Automations: React.FC = () => {
                         ))}
                         <span className="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-1 text-[11px] text-primary border border-primary/40">
                           <Link2 className="mr-1.5 h-3 w-3" />
-                          Limit: {automation.limit}
+                          Limit: {automation.dailyLimit} / day
                         </span>
                       </div>
                     </div>
 
                     <div className="flex flex-col items-stretch gap-2 md:w-40">
+                      <button
+                        type="button"
+                        onClick={() => handleRunNow(automation)}
+                        disabled={actionId !== null}
+                        className="inline-flex w-full items-center justify-center rounded-lg px-3 py-2 text-xs md:text-sm font-medium border border-primary/60 bg-primary/15 text-primary hover:bg-primary/25"
+                      >
+                        {actionId === String(automation.id) ? (
+                          <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                        ) : (
+                          <><Zap className="mr-1.5 h-4 w-4" /> Run now</>
+                        )}
+                      </button>
+                      <Link href={`/automations/${automation.id}/jobs`} className="inline-flex w-full">
+                        <Button variant="secondary" className="w-full text-xs md:text-sm inline-flex items-center justify-center gap-2">
+                          <Briefcase className="h-4 w-4 shrink-0" />
+                          View applied jobs
+                        </Button>
+                      </Link>
                       <Link href={`/automations?edit=${automation.id}`} className="inline-flex w-full">
                         <Button variant="secondary" className="w-full text-xs md:text-sm inline-flex items-center justify-center gap-2">
                           <Settings2 className="h-4 w-4 shrink-0" />
@@ -212,7 +257,7 @@ const Automations: React.FC = () => {
                             : "border-emerald-500/60 bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25"
                         }`}
                       >
-                        {actionId === automation.id ? (
+                        {actionId === String(automation.id) ? (
                           <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                         ) : automation.status === "running" ? (
                           <><Pause className="mr-1.5 h-4 w-4" /> Pause</>
@@ -266,11 +311,22 @@ const Automations: React.FC = () => {
                 <div>
                   <label className="block text-xs font-medium text-muted mb-1.5">Daily limit</label>
                   <input
+                    type="number"
+                    min={1}
+                    max={500}
                     value={form.dailyLimit}
-                    onChange={(e) => setForm((f) => ({ ...f, dailyLimit: e.target.value }))}
-                    placeholder="e.g. 25"
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        dailyLimit: Number(e.target.value || 0),
+                      }))
+                    }
+                    placeholder="e.g. 50"
                     className="w-full rounded-lg border border-dark_border bg-black/30 px-3 py-2 text-sm text-white placeholder:text-muted focus:outline-none focus:border-primary"
                   />
+                  <p className="mt-1 text-[11px] text-muted">
+                    How many applications per day this automation can send (e.g. 50, 100).
+                  </p>
                 </div>
               </div>
               <div>

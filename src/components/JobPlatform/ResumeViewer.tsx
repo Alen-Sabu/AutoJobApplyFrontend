@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { FileText, Loader2, AlertCircle, Download, ArrowLeft, Upload } from "lucide-react";
 import { fetchSetupStatus, downloadResume, uploadResume } from "@/lib/setupApi";
+import ResumePreview from "@/components/Common/ResumePreview";
 
 const ACCEPT_RESUME = ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -12,7 +13,6 @@ export default function ResumeViewer() {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isPdf, setIsPdf] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -39,7 +39,6 @@ export default function ResumeViewer() {
         if (cancelled) return;
         const lower = (status.data.resume.fileName || "").toLowerCase();
         const isPdfFile = lower.endsWith(".pdf");
-        setIsPdf(isPdfFile);
         // Ensure PDF blob has correct type so the browser will render it in iframe/object
         const blobForUrl =
           isPdfFile && blob.type !== "application/pdf"
@@ -60,7 +59,7 @@ export default function ResumeViewer() {
     };
   }, [refreshKey]);
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     if (!resumeInfo || !blobUrl) return;
     const a = document.createElement("a");
     a.href = blobUrl;
@@ -187,44 +186,12 @@ export default function ResumeViewer() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-dark_border bg-dark_grey/50 overflow-hidden">
-          {isPdf ? (
-            <div className="w-full min-h-[70vh] bg-white">
-              <object
-                data={blobUrl}
-                type="application/pdf"
-                className="w-full min-h-[70vh]"
-                aria-label="Resume PDF"
-              >
-                <div className="flex flex-col items-center justify-center min-h-[70vh] p-8 text-muted">
-                  <p className="mb-4">Your browser may not support inline PDF viewing.</p>
-                  <button
-                    type="button"
-                    onClick={handleDownload}
-                    className="inline-flex items-center gap-2 rounded-lg border border-primary bg-primary/10 text-primary px-4 py-2 text-sm font-medium hover:bg-primary/20"
-                  >
-                    <Download className="h-4 w-4" />
-                    Download resume instead
-                  </button>
-                </div>
-              </object>
-            </div>
-          ) : (
-            <div className="p-8 text-center">
-              <p className="text-muted mb-4">
-                Preview is available for PDF files. Your file is <strong className="text-white">{resumeInfo.fileName}</strong>.
-              </p>
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="inline-flex items-center gap-2 rounded-lg border border-primary bg-primary/10 text-primary px-4 py-2 text-sm font-medium hover:bg-primary/20"
-              >
-                <Download className="h-4 w-4" />
-                Download resume
-              </button>
-            </div>
-          )}
-        </div>
+        <ResumePreview
+          blobUrl={blobUrl}
+          fileName={resumeInfo.fileName}
+          showHeader={false}
+          minHeight="70vh"
+        />
       </div>
     </section>
   );

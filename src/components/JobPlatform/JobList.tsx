@@ -16,6 +16,7 @@ import {
   type JobsFilters,
 } from "@/lib/jobsApi";
 import { fetchSetupStatus } from "@/lib/setupApi";
+import { fetchAutomations, type Automation } from "@/lib/automationsApi";
 
 const JobList: React.FC = () => {
   const router = useRouter();
@@ -31,6 +32,7 @@ const JobList: React.FC = () => {
   const [savedMap, setSavedMap] = useState<Map<string | number, number>>(new Map());
   const [actioningId, setActioningId] = useState<string | number | null>(null);
   const [attachModal, setAttachModal] = useState<JobItem | null>(null);
+  const [automations, setAutomations] = useState<Automation[]>([]);
   const [setupComplete, setSetupComplete] = useState<boolean | null>(null);
 
   const filters: JobsFilters = { keyword: keyword || undefined, location: location || undefined, remoteOnly };
@@ -70,6 +72,12 @@ const JobList: React.FC = () => {
   useEffect(() => {
     fetchSetupStatus().then((s) => setSetupComplete(s.complete));
   }, []);
+
+  useEffect(() => {
+    if (attachModal) {
+      fetchAutomations().then((list) => setAutomations(list)).catch(() => setAutomations([]));
+    }
+  }, [attachModal]);
 
   const handleSaveToggle = async (job: JobItem) => {
     if (actioningId !== null) return;
@@ -119,11 +127,17 @@ const JobList: React.FC = () => {
     setAttachModal(job);
   };
 
-  const confirmAttach = async (automationId: string) => {
+  const confirmAttach = async (automationId: number) => {
     if (!attachModal) return;
     setActioningId(attachModal.id);
     try {
-      await attachJobToAutomation(attachModal.id, automationId);
+      const { userJobId } = await attachJobToAutomation(attachModal.id, automationId);
+      setSavedIds((prev) => new Set(prev).add(attachModal.id));
+      setSavedMap((prev) => {
+        const next = new Map(prev);
+        next.set(attachModal.id, userJobId);
+        return next;
+      });
       setAttachModal(null);
     } finally {
       setActioningId(null);
@@ -301,19 +315,29 @@ const JobList: React.FC = () => {
           <div className="rounded-xl border border-dark_border bg-dark_grey p-6 max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-white mb-2">Attach to automation</h3>
             <p className="text-sm text-muted mb-4">{attachModal.title} → choose an automation</p>
-            <div className="space-y-2">
-              {["1", "2", "3"].map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  className="w-full rounded-lg border border-dark_border bg-black/30 px-4 py-2 text-sm text-white hover:border-primary"
-                  onClick={() => confirmAttach(id)}
-                  disabled={actioningId !== null}
-                >
-                  Automation {id}
-                </button>
-              ))}
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {automations.length === 0 && actioningId === null ? (
+                <p className="text-sm text-muted">Loading automations…</p>
+              ) : (
+                automations.map((auto) => (
+                  <button
+                    key={auto.id}
+                    type="button"
+                    className="w-full rounded-lg border border-dark_border bg-black/30 px-4 py-2 text-sm text-white hover:border-primary text-left flex items-center justify-between gap-2"
+                    onClick={() => confirmAttach(auto.id)}
+                    disabled={actioningId !== null}
+                  >
+                    <span>{auto.name}</span>
+                    <span className="text-[11px] text-muted">
+                      {auto.status === "running" ? "Running" : "Paused"} · {auto.dailyLimit}/day
+                    </span>
+                  </button>
+                ))
+              )}
             </div>
+            {automations.length === 0 && !actioningId && (
+              <p className="mt-2 text-xs text-muted">Create an automation from the Automations page first.</p>
+            )}
             <button type="button" className="mt-4 w-full text-sm text-muted hover:text-primary" onClick={() => setAttachModal(null)}>
               Cancel
             </button>

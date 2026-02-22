@@ -1,10 +1,4 @@
-/**
- * Dashboard API – replace BASE_URL and ENDPOINTS with your real API base and paths.
- * Replace the mock implementations with: api.get(BASE_URL + ENDPOINTS.stats) etc.
- */
-
-// —— Replace with your actual API base (e.g. from env or backendApi) ——
-const DASHBOARD_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+import { backendApi, backendGet, backendPost } from "./axios";
 
 export const DASHBOARD_ENDPOINTS = {
   stats: "/dashboard/stats",
@@ -13,6 +7,7 @@ export const DASHBOARD_ENDPOINTS = {
   campaignDetail: (id: string) => `/dashboard/campaigns/${id}`,
   pauseCampaign: (id: string) => `/dashboard/campaigns/${id}/pause`,
   resumeCampaign: (id: string) => `/dashboard/campaigns/${id}/resume`,
+  runCampaign: (id: string) => `/automations/${id}/run`,
 } as const;
 
 // —— Types (align with your backend DTOs) ——
@@ -31,6 +26,17 @@ export interface DashboardCampaign {
   dailyLimit: string;
   platforms: string[];
   status: "Running" | "Paused";
+  /** Applications submitted today (for "limit exceeded" UI). */
+  applicationsToday?: number;
+  /** Numeric daily limit (e.g. 25) for comparison. */
+  dailyLimitNumber?: number;
+}
+
+export interface DashboardRunResult {
+  applied_count: number;
+  limit_reached: boolean;
+  message: string;
+  applications_today: number;
 }
 
 export interface DashboardActivityItem {
@@ -40,97 +46,52 @@ export interface DashboardActivityItem {
   description: string;
 }
 
-// —— Mock data (replace with real API calls) ——
-const MOCK_STATS: DashboardStat[] = [
-  { label: "Applications today", value: "18", change: "+6 vs yesterday", key: "applications_today" },
-  { label: "This week", value: "86", change: "+24 vs last week", key: "this_week" },
-  { label: "Interviews booked", value: "7", change: "Last 14 days", key: "interviews" },
-  { label: "Active automations", value: "4", change: "Across 3 job boards", key: "active_automations" },
-];
-
-const MOCK_CAMPAIGNS: DashboardCampaign[] = [
-  {
-    id: "1",
-    name: "Senior React Engineer",
-    targetTitle: "Frontend / React",
-    locations: ["Remote", "Europe"],
-    dailyLimit: "25 / day",
-    platforms: ["LinkedIn", "Wellfound"],
-    status: "Running",
-  },
-  {
-    id: "2",
-    name: "Backend Python / Django",
-    targetTitle: "Backend Engineer",
-    locations: ["Remote", "US"],
-    dailyLimit: "20 / day",
-    platforms: ["LinkedIn", "Indeed"],
-    status: "Paused",
-  },
-  {
-    id: "3",
-    name: "Full‑stack TypeScript",
-    targetTitle: "Full‑stack",
-    locations: ["Remote"],
-    dailyLimit: "30 / day",
-    platforms: ["LinkedIn"],
-    status: "Running",
-  },
-];
-
-const MOCK_ACTIVITY: DashboardActivityItem[] = [
-  { id: "1", time: "2 min ago", title: "Applied to 3 new React roles", description: "Using “Senior React Engineer” automation on LinkedIn." },
-  { id: "2", time: "28 min ago", title: "New interview scheduled", description: "Frontend Engineer @ Acme – Thursday, 15:30." },
-  { id: "3", time: "1 hr ago", title: "Daily limit reached for Indeed", description: "Backend Python / Django campaign hit 20 applications." },
-];
-
-/** Simulate network delay */
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 /**
  * Fetch dashboard stats.
- * TODO: replace with: const { data } = await api.get(DASHBOARD_BASE + DASHBOARD_ENDPOINTS.stats); return data;
  */
 export async function fetchDashboardStats(): Promise<DashboardStat[]> {
-  await delay(300);
-  // return (await api.get(DASHBOARD_BASE + DASHBOARD_ENDPOINTS.stats)).data;
-  return MOCK_STATS;
+  const { data } = await backendGet<DashboardStat[]>(DASHBOARD_ENDPOINTS.stats);
+  return data;
 }
 
 /**
  * Fetch active campaigns.
- * TODO: replace with: const { data } = await api.get(DASHBOARD_BASE + DASHBOARD_ENDPOINTS.campaigns); return data;
  */
 export async function fetchDashboardCampaigns(): Promise<DashboardCampaign[]> {
-  await delay(300);
-  // return (await api.get(DASHBOARD_BASE + DASHBOARD_ENDPOINTS.campaigns)).data;
-  return MOCK_CAMPAIGNS;
+  const { data } = await backendGet<DashboardCampaign[]>(DASHBOARD_ENDPOINTS.campaigns);
+  return data;
 }
 
 /**
  * Fetch recent activity.
- * TODO: replace with: const { data } = await api.get(DASHBOARD_BASE + DASHBOARD_ENDPOINTS.activity); return data;
  */
 export async function fetchDashboardActivity(): Promise<DashboardActivityItem[]> {
-  await delay(300);
-  // return (await api.get(DASHBOARD_BASE + DASHBOARD_ENDPOINTS.activity)).data;
-  return MOCK_ACTIVITY;
+  const { data } = await backendGet<DashboardActivityItem[]>(DASHBOARD_ENDPOINTS.activity);
+  return data;
 }
 
 /**
  * Pause a campaign (optional – for "View details" / campaign actions).
- * TODO: replace with: await api.post(DASHBOARD_BASE + DASHBOARD_ENDPOINTS.pauseCampaign(id));
  */
 export async function pauseCampaign(id: string): Promise<void> {
-  await delay(200);
-  // await api.post(DASHBOARD_BASE + DASHBOARD_ENDPOINTS.pauseCampaign(id));
+  await backendPost(DASHBOARD_ENDPOINTS.pauseCampaign(id));
 }
 
 /**
  * Resume a campaign.
- * TODO: replace with: await api.post(DASHBOARD_BASE + DASHBOARD_ENDPOINTS.resumeCampaign(id));
  */
 export async function resumeCampaign(id: string): Promise<void> {
-  await delay(200);
-  // await api.post(DASHBOARD_BASE + DASHBOARD_ENDPOINTS.resumeCampaign(id));
+  await backendPost(DASHBOARD_ENDPOINTS.resumeCampaign(id));
+}
+
+/**
+ * Run campaign (automation) once: apply to matching jobs up to daily limit.
+ * Returns result with message to show in toast.
+ */
+export async function runCampaign(id: string): Promise<DashboardRunResult> {
+  const { data } = await backendApi.post<DashboardRunResult>(
+    DASHBOARD_ENDPOINTS.runCampaign(id),
+    {}
+  );
+  return data;
 }

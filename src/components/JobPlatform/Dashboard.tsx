@@ -21,10 +21,12 @@ import {
   fetchDashboardActivity,
   pauseCampaign as apiPauseCampaign,
   resumeCampaign as apiResumeCampaign,
+  runCampaign as apiRunCampaign,
   type DashboardStat,
   type DashboardCampaign,
   type DashboardActivityItem,
 } from "@/lib/dashboardApi";
+import toast from "react-hot-toast";
 import { fetchSetupStatus } from "@/lib/setupApi";
 
 const STAT_ICONS: Record<string, React.ReactNode> = {
@@ -120,7 +122,21 @@ const Dashboard: React.FC = () => {
         );
       }
     } catch {
-      // optional: toast
+      // error toast handled by axios
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleRunNow = async (campaign: DashboardCampaign) => {
+    if (actionId) return;
+    setActionId(campaign.id);
+    try {
+      const result = await apiRunCampaign(campaign.id);
+      toast.success(result.message);
+      await loadData();
+    } catch {
+      // error toast handled by axios
     } finally {
       setActionId(null);
     }
@@ -253,9 +269,17 @@ const Dashboard: React.FC = () => {
                   className="rounded-xl border border-dark_border bg-black/20 px-4 py-4 md:px-5 md:py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
                 >
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="font-medium text-white">{campaign.name}</p>
                       <StatusBadge status={campaign.status} />
+                      {typeof campaign.applicationsToday === "number" &&
+                        typeof campaign.dailyLimitNumber === "number" &&
+                        campaign.applicationsToday >= campaign.dailyLimitNumber &&
+                        campaign.dailyLimitNumber > 0 && (
+                          <span className="inline-flex items-center rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/40 px-2.5 py-0.5 text-xs font-medium">
+                            Limit exceeded
+                          </span>
+                        )}
                     </div>
                     <p className="text-xs text-muted">
                       Targeting{" "}
@@ -288,7 +312,21 @@ const Dashboard: React.FC = () => {
                         </span>
                       ))}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleRunNow(campaign)}
+                        disabled={actionId !== null}
+                        className="rounded-lg border border-primary/50 bg-primary/10 px-2.5 py-1.5 text-xs text-primary hover:bg-primary/20 disabled:opacity-50 flex items-center gap-1.5"
+                        title="Apply to matching jobs now (up to daily limit)"
+                      >
+                        {actionId === campaign.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Zap className="h-3.5 w-3.5" />
+                        )}
+                        Run now
+                      </button>
                       <button
                         type="button"
                         onClick={() => handlePauseResume(campaign)}

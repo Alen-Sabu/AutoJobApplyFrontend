@@ -18,7 +18,9 @@ const Platform = () => {
           </div>
           <div className="lg:col-span-4 col-span-12">
             <div className="flex lg:justify-end lg:mt-0 mt-7 justify-center">
-             <Button>Open dashboard</Button>
+              <Link href="/signin">
+                <Button>Open dashboard</Button>
+              </Link>
             </div>
           </div>
         </div>

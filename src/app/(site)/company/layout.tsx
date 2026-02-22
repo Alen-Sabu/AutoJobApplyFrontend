@@ -3,57 +3,51 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import AuthGuard from "@/components/Auth/AuthGuard";
-import { dashboardNavData } from "@/components/Layout/Header/Navigation/dashboardNavData";
+import CompanyGuard from "@/components/Auth/CompanyGuard";
+import { companyNavData } from "@/components/Layout/Header/Navigation/companyNavData";
 import Logo from "@/components/Layout/Header/Logo";
-import DashboardFooter from "@/components/Layout/DashboardFooter";
-import {
-  LayoutDashboard,
-  User,
-  Settings,
-  Briefcase,
-  Zap,
-  BookOpen,
-  LogOut,
-  Menu,
-  X,
-  ShieldCheck,
-  FileText,
-} from "lucide-react";
+import CompanyFooter from "@/components/Layout/CompanyFooter";
+import { LayoutDashboard, Briefcase, LogOut, Menu, X, Building2 } from "lucide-react";
 
 const navIcons: Record<string, React.ReactNode> = {
   Dashboard: <LayoutDashboard className="h-4 w-4" />,
-  Profile: <User className="h-4 w-4" />,
-  Resume: <FileText className="h-4 w-4" />,
-  Setup: <ShieldCheck className="h-4 w-4" />,
-  Settings: <Settings className="h-4 w-4" />,
-  Jobs: <Briefcase className="h-4 w-4" />,
-  Automations: <Zap className="h-4 w-4" />,
-  Playbooks: <BookOpen className="h-4 w-4" />,
+  "My jobs": <Briefcase className="h-4 w-4" />,
 };
 
-function handleSignOut() {
+function handleCompanySignOut() {
   if (typeof window !== "undefined") {
+    try {
+      const userRaw = localStorage.getItem("crypgo_user");
+      if (userRaw && JSON.parse(userRaw)?.role === "company") {
+        localStorage.removeItem("crypgo_user");
+      }
+    } catch {}
     localStorage.removeItem("crypgo_authed");
     localStorage.removeItem("access_token");
     window.location.href = "/";
   }
 }
 
-export default function DashboardLayout({
+export default function CompanyLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const isSigninPage = pathname === "/company/signin";
+  const isSignupPage = pathname === "/company/signup";
+
+  if (isSigninPage || isSignupPage) {
+    return <>{children}</>;
+  }
 
   const navLinks = (
     <>
-      {dashboardNavData.map((item) => {
+      {companyNavData.map((item) => {
         const isActive =
           pathname === item.href ||
-          (item.href !== "/dashboard" && pathname.startsWith(item.href));
+          (item.href !== "/company" && pathname.startsWith(item.href));
         return (
           <Link
             key={item.href}
@@ -74,14 +68,14 @@ export default function DashboardLayout({
   );
 
   return (
-    <AuthGuard>
+    <CompanyGuard>
       <div className="min-h-screen bg-darkmode flex flex-col">
-        {/* Sidebar - desktop */}
+        {/* Sidebar - desktop (matches dashboard) */}
         <aside className="hidden lg:flex flex-col w-56 border-r border-dark_border bg-dark_grey/30 shrink-0 fixed left-0 top-0 h-full z-30 pt-20">
           <div className="p-4 border-b border-dark_border">
-            <Link href="/dashboard" className="flex items-center gap-2">
+            <Link href="/company" className="flex items-center gap-2">
               <Logo />
-              <span className="font-semibold text-white">Dashboard</span>
+              <span className="font-semibold text-white">Company</span>
             </Link>
           </div>
           <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
@@ -95,8 +89,8 @@ export default function DashboardLayout({
               View site
             </Link>
             <button
-              onClick={handleSignOut}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted hover:text-white hover:bg-black/20 w-full transition-colors"
+              onClick={handleCompanySignOut}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted hover:text-white hover:bg-black/20 transition-colors"
             >
               <LogOut className="h-4 w-4" />
               Sign out
@@ -104,11 +98,11 @@ export default function DashboardLayout({
           </div>
         </aside>
 
-        {/* Mobile top bar with menu */}
+        {/* Mobile top bar with menu (matches dashboard) */}
         <div className="lg:hidden fixed top-0 left-0 right-0 h-14 border-b border-dark_border bg-dark_grey/80 z-20 flex items-center justify-between px-4">
-          <Link href="/dashboard" className="flex items-center gap-2">
+          <Link href="/company" className="flex items-center gap-2">
             <Logo />
-            <span className="font-semibold text-white">Dashboard</span>
+            <span className="font-semibold text-white">Company</span>
           </Link>
           <button
             onClick={() => setMobileNavOpen(!mobileNavOpen)}
@@ -119,7 +113,7 @@ export default function DashboardLayout({
           </button>
         </div>
 
-        {/* Mobile nav drawer */}
+        {/* Mobile nav drawer (matches dashboard) */}
         {mobileNavOpen && (
           <>
             <div
@@ -139,7 +133,7 @@ export default function DashboardLayout({
                 </Link>
                 <button
                   onClick={() => {
-                    handleSignOut();
+                    handleCompanySignOut();
                     setMobileNavOpen(false);
                   }}
                   className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted hover:text-white hover:bg-black/20 w-full transition-colors"
@@ -152,7 +146,7 @@ export default function DashboardLayout({
           </>
         )}
 
-        {/* Main content */}
+        {/* Main content (matches dashboard: same padding, header, footer) */}
         <main className="flex-1 lg:pl-56 min-h-screen pt-14 lg:pt-0 flex flex-col">
           <header className="sticky top-0 z-10 border-b border-dark_border bg-darkmode/95 backdrop-blur px-4 py-3 lg:px-8">
             <div className="flex items-center justify-between">
@@ -160,14 +154,14 @@ export default function DashboardLayout({
                 <Logo />
               </Link>
               <p className="text-xs text-muted lg:absolute lg:right-8">
-                My account
+                Company account
               </p>
             </div>
           </header>
           <div className="p-4 lg:p-8 flex-1">{children}</div>
-          <DashboardFooter />
+          <CompanyFooter />
         </main>
       </div>
-    </AuthGuard>
+    </CompanyGuard>
   );
 }

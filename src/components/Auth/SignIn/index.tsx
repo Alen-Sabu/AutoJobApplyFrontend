@@ -22,15 +22,27 @@ const Signin = ({ onSuccess }: { onSuccess?: () => void }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { access_token } = await login(loginData.email, loginData.password);
+      const res = await login(loginData.email, loginData.password);
       if (typeof window !== "undefined") {
-        localStorage.setItem("access_token", access_token);
+        localStorage.setItem("access_token", res.access_token);
         localStorage.setItem("crypgo_authed", "1");
+        if (res.user) {
+          localStorage.setItem("crypgo_user", JSON.stringify(res.user));
+          if (res.user.is_superuser) {
+            localStorage.setItem("crypgo_admin", "1");
+          }
+        }
       }
       onSuccess?.();
-      router.push("/dashboard");
+      if (res.user?.is_superuser) {
+        router.push("/admin");
+      } else if (res.user?.role === "company") {
+        router.push("/company");
+      } else {
+        router.push("/dashboard");
+      }
     } catch {
-      // Error toast shown by axios interceptor (e.g. "Invalid email or password" or API detail)
+      // Error toast shown by axios interceptor
     } finally {
       setLoading(false);
     }

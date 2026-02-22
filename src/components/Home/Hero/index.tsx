@@ -48,11 +48,17 @@ const Hero = () => {
               bottomHeading="the right applications"
             />
 
-            <div className="flex items-center md:justify-start justify-center gap-8">
+            <div className="flex items-center md:justify-start justify-center gap-4 flex-wrap">
               <Link href="/signin">
                 <Button variant="primary" className="px-6 py-3">
                   Get started
                 </Button>
+              </Link>
+              <Link
+                href="/company/signin"
+                className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-primary text-primary hover:bg-primary hover:text-darkmode transition-all duration-200"
+              >
+                For Companies
               </Link>
             </div>
           </motion.div>

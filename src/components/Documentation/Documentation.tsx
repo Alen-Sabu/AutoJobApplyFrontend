@@ -3,12 +3,14 @@ import { DocNavigation } from "./DocNavigation";
 import { Introduction } from "./Introduction";
 import { PackageStructure } from "./PackageStructure";
 import { QuickStart } from "./QuickStart";
+import { SystemArchitectureDiagram } from "./SystemArchitectureDiagram";
 import { ProjectOverview } from "./ProjectOverview";
 import { SystemDesign } from "./SystemDesign";
 import { DfdSection } from "./DfdSection";
 import { Architecture } from "./Architecture";
 import { FeaturesList } from "./FeaturesList";
 import { UserFlows } from "./UserFlows";
+import { BackendDocs } from "./BackendDocs";
 import { ApiReference } from "./ApiReference";
 import { TechStack } from "./TechStack";
 
@@ -20,6 +22,7 @@ export const Documentation = () => {
           <h1 className="text-3xl font-bold text-white">CrypGo Documentation</h1>
           <p className="text-muted mt-1">Project overview, system design, DFD, architecture, features, and API reference.</p>
         </div>
+        <SystemArchitectureDiagram />
         <div className="grid grid-cols-12 gap-6 items-start">
           <aside className="lg:col-span-3 col-span-12 lg:block hidden shrink-0">
             <DocNavigation />
@@ -27,6 +30,7 @@ export const Documentation = () => {
           <div className="lg:col-span-9 col-span-12 min-w-0">
             <ProjectOverview />
             <SystemDesign />
+            <BackendDocs />
             <DfdSection />
             <Architecture />
             <FeaturesList />

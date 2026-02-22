@@ -44,10 +44,11 @@ interface JobResponse {
   external_id?: string | null;
 }
 
-interface UserJobWithJob {
+export interface UserJobWithJob {
   id: number;
   user_id: number;
   job_id: number;
+  automation_id?: number | null;
   status: string;
   notes: string | null;
   resume_path: string | null;
@@ -79,8 +80,8 @@ function mapUserJobToItem(uj: UserJobWithJob): JobItem {
   };
 }
 
-export async function fetchJobs(filters?: JobsFilters): Promise<JobItem[]> {
-  const params: Record<string, unknown> = {};
+export async function fetchJobs(filters?: JobsFilters, skip = 0, limit = 100): Promise<JobItem[]> {
+  const params: Record<string, unknown> = { skip, limit };
   if (filters?.keyword) params.query = filters.keyword;
   if (filters?.location) params.location = filters.location;
 
@@ -144,11 +145,37 @@ export async function applyOnce(jobId: string | number, existingUserJobId?: numb
 }
 
 /**
- * Attaching jobs to automations is still mocked until backend automations are wired.
+ * Attach a job to an automation (adds to user's list linked to that automation; status saved).
+ * User can then submit from the automation's jobs page or from here.
  */
-export async function attachJobToAutomation(jobId: string | number, automationId: string): Promise<void> {
-  void jobId;
-  void automationId;
-  // TODO: integrate with automations API when available
+export async function attachJobToAutomation(jobId: string | number, automationId: string | number): Promise<{ userJobId: number }> {
+  const { data } = await backendApi.post<UserJobWithJob>("/user-jobs", {
+    job_id: Number(jobId),
+    automation_id: Number(automationId),
+  }, {
+    toastSuccessMessage: "Job attached to automation.",
+  });
+  return { userJobId: data.id };
+}
+
+/**
+ * Submit a user_job (mark as applied). Use when you already have the user_job id.
+ */
+export async function submitUserJob(userJobId: number): Promise<void> {
+  await backendApi.post(
+    `/user-jobs/${userJobId}/submit`,
+    {},
+    { toastSuccessMessage: "Application submitted." },
+  );
+}
+
+/**
+ * Fetch jobs linked to a specific automation (saved or applied).
+ */
+export async function fetchJobsForAutomation(automationId: number): Promise<UserJobWithJob[]> {
+  const { data } = await backendApi.get<UserJobWithJob[]>(`/automations/${automationId}/jobs`, {
+    params: { skip: 0, limit: 200 },
+  });
+  return data;
 }
 

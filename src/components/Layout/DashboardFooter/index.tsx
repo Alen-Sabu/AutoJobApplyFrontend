@@ -2,61 +2,52 @@
 
 import React, { FC } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { headerData } from "../Header/Navigation/menuData";
+import { dashboardNavData } from "../Header/Navigation/dashboardNavData";
 import { footerlabels } from "@/app/api/data";
 import { Icon } from "@iconify/react";
 import Logo from "../Header/Logo";
 
-const Footer: FC = () => {
-  const router = useRouter();
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    router.push("/signup");
-  };
-
+const DashboardFooter: FC = () => {
   return (
-    <footer className="pt-16 bg-darkmode">
+    <footer className="pt-16 bg-darkmode border-t border-dark_border">
       <div className="container mx-auto lg:max-w-screen-xl md:max-w-screen-md px-4">
-        <div className="grid grid-cols-1 sm:grid-cols-12 lg:gap-20 md:gap-6 sm:gap-12 gap-6  pb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-12 lg:gap-20 md:gap-6 sm:gap-12 gap-6 pb-16">
           <div className="lg:col-span-4 md:col-span-6 col-span-6">
             <Logo />
             <div className="flex gap-6 items-center mt-8">
-              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="group" aria-label="Facebook">
+              <Link href="#" className="group">
                 <Icon
                   icon="fa6-brands:facebook-f"
                   width="24"
                   height="24"
                   className="text-white group-hover:text-primary"
                 />
-              </a>
-              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="group" aria-label="Instagram">
+              </Link>
+              <Link href="#" className="group">
                 <Icon
                   icon="fa6-brands:instagram"
                   width="24"
                   height="24"
                   className="text-white group-hover:text-primary"
                 />
-              </a>
-              <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="group" aria-label="X (Twitter)">
+              </Link>
+              <Link href="#" className="group">
                 <Icon
                   icon="fa6-brands:x-twitter"
                   width="24"
                   height="24"
                   className="text-white group-hover:text-primary"
                 />
-              </a>
+              </Link>
             </div>
             <h3 className="text-white text-24 font-medium sm:mt-20 mt-12">
               2025 Copyright | CrypGo Auto Job Apply
             </h3>
-            
           </div>
           <div className="lg:col-span-2 md:col-span-3 col-span-6">
-            <h4 className="text-white mb-4 font-medium text-24">Links</h4>
+            <h4 className="text-white mb-4 font-medium text-24">Dashboard</h4>
             <ul>
-              {headerData.map((item, index) => (
+              {dashboardNavData.map((item, index) => (
                 <li key={index} className="pb-4">
                   <Link
                     href={item.href}
@@ -89,22 +80,21 @@ const Footer: FC = () => {
               Subscribe to get product updates, new automation ideas, and
               launch notes.
             </p>
-            <form onSubmit={handleSubscribe} className="relative lg:w-80%">
+            <div className="relative lg:w-80%">
               <input
                 type="email"
                 name="mail"
-                id="mail"
+                id="dashboard-footer-mail"
                 placeholder="Enter Email"
-                className="bg-transparent border border-dark_border border-opacity-60 py-4 text-white rounded-lg w-full mt-6 px-6 pr-14"
+                className="bg-transparent border border-dark_border border-opacity-60 py-4 text-white rounded-lg w-full mt-6 px-6"
               />
-              <button
-                type="submit"
-                aria-label="Subscribe"
-                className="absolute right-3 bottom-3 p-2 text-primary hover:text-white transition-colors"
-              >
-                <Icon icon="tabler:send" width="24" height="24" />
-              </button>
-            </form>
+              <Icon
+                icon="tabler:send"
+                width="24"
+                height="24"
+                className="text-primary absolute right-7 bottom-4"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -112,4 +102,4 @@ const Footer: FC = () => {
   );
 };
 
-export default Footer;
+export default DashboardFooter;

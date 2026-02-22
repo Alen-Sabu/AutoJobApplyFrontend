@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 const DOC_HASHES = [
   "overview",
+  "backend",
   "system-design",
   "dfd",
   "architecture",
@@ -20,6 +21,7 @@ const DOC_HASHES = [
 
 const DocsNav = [
   { id: 0, navItem: "Project Overview", hash: "overview" },
+  { id: 0.5, navItem: "Backend", hash: "backend" },
   { id: 1, navItem: "System Design", hash: "system-design" },
   { id: 2, navItem: "Data Flow Diagram (DFD)", hash: "dfd" },
   { id: 3, navItem: "Architecture", hash: "architecture" },

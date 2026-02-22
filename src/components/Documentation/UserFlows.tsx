@@ -13,6 +13,7 @@ export const UserFlows = () => {
             <li>After setup complete, user can open Jobs, Apply once or Attach to automation; create Automations; use Playbooks</li>
           </ol>
         </div>
+
         <div>
           <h6 className="text-white font-medium mb-2">Applying to a job</h6>
           <ol className="list-decimal text-muted text-opacity-90 ps-6 space-y-1">
@@ -21,12 +22,25 @@ export const UserFlows = () => {
             <li>If complete → API call (applyOnce or attachJobToAutomation) and UI update</li>
           </ol>
         </div>
+
         <div>
           <h6 className="text-white font-medium mb-2">Admin: login → moderate</h6>
           <ol className="list-decimal text-muted text-opacity-90 ps-6 space-y-1">
             <li>Admin goes to /admin/login → enters credentials → sets crypgo_admin → redirect to /admin</li>
             <li>Dashboard shows stats, activity, alerts; links to Users, Jobs, Settings, Audit</li>
             <li>Users: suspend/activate. Jobs: approve/reject. Automations: pause/resume. Playbooks: add/edit. Settings: save. Audit: view/filter.</li>
+          </ol>
+        </div>
+
+        <div>
+          <h6 className="text-white font-medium mb-2">Company: register → setup → manage</h6>
+          <ol className="list-decimal text-muted text-opacity-90 ps-6 space-y-1">
+            <li>Company visits /company/signup or is invited → creates company account and primary admin</li>
+            <li>Complete company profile: company name, website, logo, address, billing/subscription details</li>
+            <li>Invite team members (recruiters, hiring managers) → assign roles (member, manager, admin)</li>
+            <li>Post jobs under company account → configure job details, application settings, and screening questions</li>
+            <li>Manage applicants: view, shortlist, message, or export. Use company dashboard for analytics and billing.</li>
+            <li>If company setup incomplete when trying to post jobs or access company dashboard → redirect to /company/setup</li>
           </ol>
         </div>
       </div>

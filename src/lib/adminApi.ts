@@ -30,8 +30,6 @@ export const ADMIN_ENDPOINTS = {
   audit: `${ADMIN_PREFIX}/audit`,
 } as const;
 
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 // —— Types ——
 export interface AdminStatCard {
   label: string;
@@ -82,9 +80,28 @@ export interface AdminAutomation {
   id: number | string;
   name: string;
   userId: number;
+  userEmail: string;
+  userName: string;
   status: "running" | "paused";
   applications: number;
+  total_applied?: number;
   platforms: string[];
+  target_titles?: string | null;
+  locations?: string | null;
+  daily_limit?: number;
+  cover_letter_template?: string | null;
+  created_at?: string;
+  updated_at?: string | null;
+}
+
+export interface AdminAutomationUpdatePayload {
+  name?: string;
+  target_titles?: string;
+  locations?: string;
+  daily_limit?: number;
+  platforms?: string[];
+  cover_letter_template?: string;
+  status?: "running" | "paused";
 }
 
 export interface AdminPlaybook {
@@ -114,31 +131,18 @@ export interface AdminAuditEntry {
 
 // —— Dashboard ——
 export async function fetchAdminStats(): Promise<AdminStatCard[]> {
-  await delay(280);
-  return [
-    { label: "Total users", value: "1,247", change: "+12% this month", key: "users" },
-    { label: "Active jobs", value: "342", change: "Live listings", key: "jobs" },
-    { label: "Automations", value: "89", change: "Running", key: "automations" },
-    { label: "Applications (30d)", value: "4.2k", change: "+8%", key: "applications" },
-  ];
+  const { data } = await backendApi.get<AdminStatCard[]>(ADMIN_ENDPOINTS.stats);
+  return data;
 }
 
 export async function fetchAdminActivity(): Promise<AdminActivityItem[]> {
-  await delay(250);
-  return [
-    { id: "1", time: "5 min ago", action: "New user registered", detail: "john@example.com", type: "user" },
-    { id: "2", time: "12 min ago", action: "Job listing approved", detail: "Senior React Engineer @ Acme", type: "job" },
-    { id: "3", time: "1 hr ago", action: "Automation paused", detail: "User #882 – Backend Python campaign", type: "automation" },
-    { id: "4", time: "2 hr ago", action: "Settings updated", detail: "Maintenance window scheduled", type: "settings" },
-  ];
+  const { data } = await backendApi.get<AdminActivityItem[]>(ADMIN_ENDPOINTS.activity);
+  return data;
 }
 
 export async function fetchAdminAlerts(): Promise<AdminAlert[]> {
-  await delay(200);
-  return [
-    { id: "1", message: "3 jobs pending review", severity: "warning", href: "/admin/jobs" },
-    { id: "2", message: "1 user report in queue", severity: "info", href: "/admin/users" },
-  ];
+  const { data } = await backendApi.get<AdminAlert[]>(ADMIN_ENDPOINTS.alerts);
+  return data;
 }
 
 // —— Users ——
@@ -242,28 +246,95 @@ export async function rejectJob(jobId: string | number): Promise<void> {
 }
 
 // —— Automations ——
-export async function fetchAdminAutomations(_params?: { search?: string }): Promise<AdminAutomation[]> {
-  await delay(300);
-  return [
-    { id: 1, name: "Senior React Engineer", userId: 101, status: "running", applications: 24, platforms: ["LinkedIn", "Wellfound"] },
-    { id: 2, name: "Backend Python", userId: 102, status: "paused", applications: 18, platforms: ["LinkedIn"] },
-    { id: 3, name: "Full-stack TypeScript", userId: 103, status: "running", applications: 31, platforms: ["LinkedIn", "Indeed"] },
-  ];
+interface AdminAutomationResponse {
+  id: number;
+  user_id: number;
+  user_email: string;
+  user_name: string;
+  name: string;
+  target_titles: string | null;
+  locations: string | null;
+  daily_limit: number;
+  platforms: string[];
+  cover_letter_template: string | null;
+  status: "running" | "paused";
+  total_applied: number;
+  created_at: string;
+  updated_at: string | null;
 }
 
-export async function adminPauseAutomation(id: string | number): Promise<void> {
-  await delay(250);
-  // await api.post(BASE + ADMIN_ENDPOINTS.automationPause(String(id)));
+function mapAdminAutomation(a: AdminAutomationResponse): AdminAutomation {
+  return {
+    id: a.id,
+    name: a.name,
+    userId: a.user_id,
+    userEmail: a.user_email ?? "",
+    userName: a.user_name ?? "",
+    status: a.status,
+    applications: a.total_applied ?? 0,
+    total_applied: a.total_applied,
+    platforms: a.platforms ?? [],
+    target_titles: a.target_titles,
+    locations: a.locations,
+    daily_limit: a.daily_limit,
+    cover_letter_template: a.cover_letter_template,
+    created_at: a.created_at,
+    updated_at: a.updated_at,
+  };
 }
 
-export async function adminResumeAutomation(id: string | number): Promise<void> {
-  await delay(250);
-  // await api.post(BASE + ADMIN_ENDPOINTS.automationResume(String(id)));
+export async function fetchAdminAutomations(params?: { search?: string }): Promise<AdminAutomation[]> {
+  const { data } = await backendApi.get<AdminAutomationResponse[]>(ADMIN_ENDPOINTS.automations, {
+    params: params?.search ? { search: params.search } : undefined,
+  });
+  return data.map(mapAdminAutomation);
+}
+
+export async function fetchAdminAutomation(id: string | number): Promise<AdminAutomation> {
+  const { data } = await backendApi.get<AdminAutomationResponse>(`${ADMIN_ENDPOINTS.automations}/${id}`);
+  return mapAdminAutomation(data);
+}
+
+export async function updateAdminAutomation(
+  id: string | number,
+  payload: AdminAutomationUpdatePayload,
+): Promise<AdminAutomation> {
+  const body: Record<string, unknown> = {};
+  if (payload.name !== undefined) body.name = payload.name;
+  if (payload.target_titles !== undefined) body.target_titles = payload.target_titles;
+  if (payload.locations !== undefined) body.locations = payload.locations;
+  if (payload.daily_limit !== undefined) body.daily_limit = payload.daily_limit;
+  if (payload.platforms !== undefined) body.platforms = payload.platforms;
+  if (payload.cover_letter_template !== undefined) body.cover_letter_template = payload.cover_letter_template;
+  if (payload.status !== undefined) body.status = payload.status;
+
+  const { data } = await backendApi.put<AdminAutomationResponse>(
+    `${ADMIN_ENDPOINTS.automations}/${id}`,
+    body,
+    { toastSuccessMessage: "Automation updated." },
+  );
+  return mapAdminAutomation(data);
+}
+
+export async function adminPauseAutomation(id: string | number): Promise<AdminAutomation> {
+  const { data } = await backendApi.post<AdminAutomationResponse>(
+    ADMIN_ENDPOINTS.automationPause(String(id)),
+    {},
+  );
+  return mapAdminAutomation(data);
+}
+
+export async function adminResumeAutomation(id: string | number): Promise<AdminAutomation> {
+  const { data } = await backendApi.post<AdminAutomationResponse>(
+    ADMIN_ENDPOINTS.automationResume(String(id)),
+    {},
+  );
+  return mapAdminAutomation(data);
 }
 
 // —— Playbooks ——
+// NOTE: Playbooks are still mocked for now.
 export async function fetchAdminPlaybooks(): Promise<AdminPlaybook[]> {
-  await delay(280);
   return [
     { id: 1, name: "Senior Frontend (React)", description: "Target React/TypeScript roles", usageCount: 156 },
     { id: 2, name: "Backend Python/Django", description: "Backend and API roles", usageCount: 89 },
@@ -272,43 +343,66 @@ export async function fetchAdminPlaybooks(): Promise<AdminPlaybook[]> {
 }
 
 export async function createAdminPlaybook(payload: { name: string; description: string }): Promise<AdminPlaybook> {
-  await delay(400);
-  // return (await api.post(BASE + ADMIN_ENDPOINTS.playbookCreate, payload)).data;
+  // return (await backendApi.post(ADMIN_ENDPOINTS.playbookCreate, payload)).data;
   return { id: Date.now(), name: payload.name, description: payload.description, usageCount: 0 };
 }
 
 export async function updateAdminPlaybook(id: string | number, payload: { name?: string; description?: string }): Promise<AdminPlaybook> {
-  await delay(350);
-  // return (await api.patch(BASE + ADMIN_ENDPOINTS.playbookUpdate(String(id)), payload)).data;
+  // return (await backendApi.patch(ADMIN_ENDPOINTS.playbookUpdate(String(id)), payload)).data;
   return { id, name: payload.name ?? "Playbook", description: payload.description ?? "", usageCount: 0 };
 }
 
 // —— Settings ——
-export async function fetchAdminSettings(): Promise<AdminSiteSettings> {
-  await delay(280);
+interface AdminSiteSettingsResponse {
+  maintenance_mode: boolean;
+  new_user_registration: boolean;
+  require_email_verification: boolean;
+  max_automations_per_user: number;
+  site_name: string;
+  support_email: string;
+}
+
+function mapAdminSettings(r: AdminSiteSettingsResponse): AdminSiteSettings {
   return {
-    maintenanceMode: false,
-    newUserRegistration: true,
-    requireEmailVerification: false,
-    maxAutomationsPerUser: 10,
-    siteName: "CrypGo",
-    supportEmail: "support@crypgo.com",
+    maintenanceMode: r.maintenance_mode,
+    newUserRegistration: r.new_user_registration,
+    requireEmailVerification: r.require_email_verification,
+    maxAutomationsPerUser: r.max_automations_per_user,
+    siteName: r.site_name,
+    supportEmail: r.support_email,
   };
 }
 
-export async function saveAdminSettings(settings: Partial<AdminSiteSettings>): Promise<void> {
-  await delay(400);
-  // await api.put(BASE + ADMIN_ENDPOINTS.settings, settings);
+export async function fetchAdminSettings(): Promise<AdminSiteSettings> {
+  const { data } = await backendApi.get<AdminSiteSettingsResponse>(ADMIN_ENDPOINTS.settings);
+  return mapAdminSettings(data);
+}
+
+export async function saveAdminSettings(settings: Partial<AdminSiteSettings>): Promise<AdminSiteSettings> {
+  const body: AdminSiteSettingsResponse = {
+    maintenance_mode: settings.maintenanceMode ?? false,
+    new_user_registration: settings.newUserRegistration ?? true,
+    require_email_verification: settings.requireEmailVerification ?? false,
+    max_automations_per_user: settings.maxAutomationsPerUser ?? 10,
+    site_name: settings.siteName ?? "CrypGo",
+    support_email: settings.supportEmail ?? "support@crypgo.com",
+  };
+  const { data } = await backendApi.put<AdminSiteSettingsResponse>(
+    ADMIN_ENDPOINTS.settings,
+    body,
+    { toastSuccessMessage: "Settings saved." },
+  );
+  return mapAdminSettings(data);
 }
 
 // —— Audit ——
-export async function fetchAdminAudit(_params?: { search?: string; action?: string }): Promise<AdminAuditEntry[]> {
-  await delay(300);
-  return [
-    { id: 1, time: "2024-03-02 14:32:00", actor: "admin@crypgo.com", action: "job.approved", target: "Job #442", ip: "192.168.1.1" },
-    { id: 2, time: "2024-03-02 14:28:00", actor: "system", action: "user.registered", target: "user@example.com", ip: "-" },
-    { id: 3, time: "2024-03-02 14:15:00", actor: "admin@crypgo.com", action: "settings.updated", target: "maintenance_mode", ip: "192.168.1.1" },
-    { id: 4, time: "2024-03-02 13:55:00", actor: "user@example.com", action: "automation.created", target: "Campaign #89", ip: "10.0.0.5" },
-    { id: 5, time: "2024-03-02 13:40:00", actor: "admin@crypgo.com", action: "user.suspended", target: "User #12", ip: "192.168.1.1" },
-  ];
+export async function fetchAdminAudit(params?: { search?: string; action?: string }): Promise<AdminAuditEntry[]> {
+  const query: Record<string, string> = {};
+  if (params?.search) query.search = params.search;
+  if (params?.action) query.action = params.action;
+
+  const { data } = await backendApi.get<AdminAuditEntry[]>(ADMIN_ENDPOINTS.audit, {
+    params: Object.keys(query).length ? query : undefined,
+  });
+  return data;
 }

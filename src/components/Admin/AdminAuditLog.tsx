@@ -11,23 +11,27 @@ export default function AdminAuditLog() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const list = await fetchAdminAudit({ search: search || undefined, action: actionFilter !== "all" ? actionFilter : undefined });
-        setLogs(list);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load audit log");
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const loadAudit = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const list = await fetchAdminAudit();
+      setLogs(list);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load audit log");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const actions = Array.from(new Set(logs.map((l) => l.action)));
+  useEffect(() => {
+    loadAudit();
+  }, [loadAudit]);
 
+  const actions = Array.from(new Set(logs.map((l) => l.action)));
   const filtered = logs.filter((log) => {
     const matchSearch =
+      !search ||
       log.actor.toLowerCase().includes(search.toLowerCase()) ||
       log.target.toLowerCase().includes(search.toLowerCase()) ||
       log.action.toLowerCase().includes(search.toLowerCase());
@@ -41,14 +45,7 @@ export default function AdminAuditLog() {
         <AlertCircle className="h-10 w-10 text-red-400" />
         <p className="text-white">{error}</p>
         <button
-          onClick={() => {
-            setLoading(true);
-            setError(null);
-            fetchAdminAudit()
-              .then(setLogs)
-              .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
-              .finally(() => setLoading(false));
-          }}
+          onClick={() => loadAudit()}
           className="rounded-lg bg-primary px-4 py-2 text-darkmode"
         >
           Retry

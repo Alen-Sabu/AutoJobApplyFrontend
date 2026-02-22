@@ -4,9 +4,18 @@
  */
 import { backendApi } from "./axios";
 
+export interface UserInfo {
+  id: number;
+  email: string;
+  full_name: string | null;
+  role: string;
+  is_superuser: boolean;
+}
+
 export interface Token {
   access_token: string;
   token_type: string;
+  user?: UserInfo;
 }
 
 export interface UserCreate {
@@ -25,6 +34,7 @@ export interface UserResponse {
 const AUTH = {
   login: "/auth/login",
   register: "/auth/register",
+  registerCompany: "/auth/register/company",
   adminLogin: "/auth/admin-login",
 } as const;
 
@@ -64,6 +74,25 @@ export async function loginAdmin(email: string, password: string): Promise<Token
 export async function register(payload: UserCreate): Promise<UserResponse> {
   const { data } = await backendApi.post<UserResponse>(AUTH.register, payload, {
     toastSuccessMessage: "Account created. Please sign in.",
+  });
+  return data;
+}
+
+export interface CompanyRegisterPayload {
+  email: string;
+  password: string;
+  full_name?: string | null;
+  company_name: string;
+  description?: string | null;
+  website?: string | null;
+}
+
+/**
+ * Company signup: POST /auth/register/company. Returns token + user; store and redirect to /company.
+ */
+export async function registerCompany(payload: CompanyRegisterPayload): Promise<Token> {
+  const { data } = await backendApi.post<Token>(AUTH.registerCompany, payload, {
+    toastSuccessMessage: "Company account created.",
   });
   return data;
 }
