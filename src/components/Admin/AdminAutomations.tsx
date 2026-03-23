@@ -48,6 +48,7 @@ export default function AdminAutomations() {
         a.status === "running"
           ? await adminPauseAutomation(a.id)
           : await adminResumeAutomation(a.id);
+      if (!updated) return;
       setAutomations((prev) => prev.map((x) => (x.id === a.id ? updated : x)));
     } finally {
       setActionId(null);
@@ -86,6 +87,7 @@ export default function AdminAutomations() {
         status: editForm.status,
       };
       const updated = await updateAdminAutomation(editId, payload);
+      if (!updated) return;
       setAutomations((prev) => prev.map((x) => (x.id === editId ? updated : x)));
       closeEdit();
     } finally {

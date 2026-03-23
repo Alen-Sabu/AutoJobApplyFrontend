@@ -2,7 +2,7 @@
  * Auth API – login and register against FastAPI backend.
  * Matches autojobapply/app/api/v1/endpoints/auth.py and schemas/auth.py.
  */
-import { backendApi } from "./axios";
+import { backendApi, safeBackendData } from "./axios";
 
 export interface UserInfo {
   id: number;
@@ -42,40 +42,43 @@ const AUTH = {
  * Login: POST /auth/login with OAuth2 form (username=email, password).
  * Returns JWT; store access_token in localStorage for backendApi interceptor.
  */
-export async function login(email: string, password: string): Promise<Token> {
+export async function login(email: string, password: string): Promise<Token | undefined> {
   const params = new URLSearchParams();
   params.append("username", email);
   params.append("password", password);
-  const { data } = await backendApi.post<Token>(AUTH.login, params, {
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    toastSuccessMessage: "Signed in successfully.",
-  });
-  return data;
+  return safeBackendData(() =>
+    backendApi.post<Token>(AUTH.login, params, {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      toastSuccessMessage: "Signed in successfully.",
+    })
+  );
 }
 
 /**
  * Admin login: POST /auth/admin-login with OAuth2 form.
  * Only succeeds for users with is_superuser=True.
  */
-export async function loginAdmin(email: string, password: string): Promise<Token> {
+export async function loginAdmin(email: string, password: string): Promise<Token | undefined> {
   const params = new URLSearchParams();
   params.append("username", email);
   params.append("password", password);
-  const { data } = await backendApi.post<Token>(AUTH.adminLogin, params, {
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    toastSuccessMessage: "Signed in as admin.",
-  });
-  return data;
+  return safeBackendData(() =>
+    backendApi.post<Token>(AUTH.adminLogin, params, {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      toastSuccessMessage: "Signed in as admin.",
+    })
+  );
 }
 
 /**
  * Register: POST /auth/register with JSON { email, password, full_name? }.
  */
-export async function register(payload: UserCreate): Promise<UserResponse> {
-  const { data } = await backendApi.post<UserResponse>(AUTH.register, payload, {
-    toastSuccessMessage: "Account created. Please sign in.",
-  });
-  return data;
+export async function register(payload: UserCreate): Promise<UserResponse | undefined> {
+  return safeBackendData(() =>
+    backendApi.post<UserResponse>(AUTH.register, payload, {
+      toastSuccessMessage: "Account created. Please sign in.",
+    })
+  );
 }
 
 export interface CompanyRegisterPayload {
@@ -90,9 +93,10 @@ export interface CompanyRegisterPayload {
 /**
  * Company signup: POST /auth/register/company. Returns token + user; store and redirect to /company.
  */
-export async function registerCompany(payload: CompanyRegisterPayload): Promise<Token> {
-  const { data } = await backendApi.post<Token>(AUTH.registerCompany, payload, {
-    toastSuccessMessage: "Company account created.",
-  });
-  return data;
+export async function registerCompany(payload: CompanyRegisterPayload): Promise<Token | undefined> {
+  return safeBackendData(() =>
+    backendApi.post<Token>(AUTH.registerCompany, payload, {
+      toastSuccessMessage: "Company account created.",
+    })
+  );
 }

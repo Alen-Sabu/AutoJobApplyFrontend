@@ -20,6 +20,7 @@ export default function AdminLoginPage() {
 
     try {
       const token = await loginAdmin(email, password);
+      if (!token) return;
       if (typeof window !== "undefined") {
         localStorage.setItem("access_token", token.access_token);
         localStorage.setItem("crypgo_authed", "1");
@@ -28,10 +29,11 @@ export default function AdminLoginPage() {
       router.push("/admin");
     } catch (err) {
       const message =
-        (err as any)?.response?.data?.detail ??
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
         (err as Error).message ??
         "Invalid admin credentials.";
       setError(typeof message === "string" ? message : "Invalid admin credentials.");
+    } finally {
       setLoading(false);
     }
   };

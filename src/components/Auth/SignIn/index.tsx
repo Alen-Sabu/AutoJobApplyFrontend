@@ -23,6 +23,7 @@ const Signin = ({ onSuccess }: { onSuccess?: () => void }) => {
     setLoading(true);
     try {
       const res = await login(loginData.email, loginData.password);
+      if (!res) return;
       if (typeof window !== "undefined") {
         localStorage.setItem("access_token", res.access_token);
         localStorage.setItem("crypgo_authed", "1");

@@ -2,7 +2,7 @@
  * Settings API – user account, email, password, 2FA, delete account.
  * Uses backend API with auth; maps snake_case <-> camelCase.
  */
-import { backendApi } from "./axios";
+import { backendApi, safeBackendData, safeApiCall } from "./axios";
 
 const SETTINGS_BASE = "/settings";
 
@@ -46,51 +46,66 @@ function mapResponseToSettings(r: SettingsDataResponse): SettingsData {
   };
 }
 
-export async function fetchSettings(): Promise<SettingsData> {
-  const { data } = await backendApi.get<SettingsDataResponse>(SETTINGS_ENDPOINTS.get);
+export async function fetchSettings(): Promise<SettingsData | undefined> {
+  const data = await safeBackendData(() => backendApi.get<SettingsDataResponse>(SETTINGS_ENDPOINTS.get));
+  if (!data) return undefined;
   return mapResponseToSettings(data);
 }
 
-export async function saveAccount(payload: { displayName?: string; username?: string }): Promise<SettingsData> {
+export async function saveAccount(payload: { displayName?: string; username?: string }): Promise<SettingsData | undefined> {
   const body: Record<string, string> = {};
   if (payload.displayName !== undefined) body.display_name = payload.displayName;
   if (payload.username !== undefined) body.username = payload.username;
-  const { data } = await backendApi.patch<SettingsDataResponse>(SETTINGS_ENDPOINTS.account, body, {
-    toastSuccessMessage: "Account updated.",
-  });
+  const data = await safeBackendData(() =>
+    backendApi.patch<SettingsDataResponse>(SETTINGS_ENDPOINTS.account, body, {
+      toastSuccessMessage: "Account updated.",
+    })
+  );
+  if (!data) return undefined;
   return mapResponseToSettings(data);
 }
 
-export async function updateEmail(email: string): Promise<SettingsData> {
-  const { data } = await backendApi.post<SettingsDataResponse>(SETTINGS_ENDPOINTS.email, { email }, {
-    toastSuccessMessage: "Email updated. You may need to sign in again with your new email.",
-  });
+export async function updateEmail(email: string): Promise<SettingsData | undefined> {
+  const data = await safeBackendData(() =>
+    backendApi.post<SettingsDataResponse>(SETTINGS_ENDPOINTS.email, { email }, {
+      toastSuccessMessage: "Email updated. You may need to sign in again with your new email.",
+    })
+  );
+  if (!data) return undefined;
   return mapResponseToSettings(data);
 }
 
 export async function verifyEmail(): Promise<void> {
-  await backendApi.post(SETTINGS_ENDPOINTS.emailVerify, {}, {
-    toastSuccessMessage: "Verification email sent.",
-  });
+  await safeApiCall(() =>
+    backendApi.post(SETTINGS_ENDPOINTS.emailVerify, {}, {
+      toastSuccessMessage: "Verification email sent.",
+    })
+  );
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  await backendApi.post(
-    SETTINGS_ENDPOINTS.password,
-    { current_password: currentPassword, new_password: newPassword },
-    { toastSuccessMessage: "Password updated." }
+  await safeApiCall(() =>
+    backendApi.post(
+      SETTINGS_ENDPOINTS.password,
+      { current_password: currentPassword, new_password: newPassword },
+      { toastSuccessMessage: "Password updated." }
+    )
   );
 }
 
 export async function enable2FA(): Promise<void> {
-  await backendApi.post(SETTINGS_ENDPOINTS.twoFactor, {}, {
-    toastSuccessMessage: "2FA enabled.",
-  });
+  await safeApiCall(() =>
+    backendApi.post(SETTINGS_ENDPOINTS.twoFactor, {}, {
+      toastSuccessMessage: "2FA enabled.",
+    })
+  );
 }
 
 export async function deleteAccount(confirmation: string): Promise<void> {
-  await backendApi.delete(SETTINGS_ENDPOINTS.deleteAccount, {
-    data: { confirmation },
-    toastSuccessMessage: "Account deactivated.",
-  });
+  await safeApiCall(() =>
+    backendApi.delete(SETTINGS_ENDPOINTS.deleteAccount, {
+      data: { confirmation },
+      toastSuccessMessage: "Account deactivated.",
+    })
+  );
 }

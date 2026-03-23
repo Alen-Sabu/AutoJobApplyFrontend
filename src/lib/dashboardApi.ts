@@ -1,4 +1,4 @@
-import { backendApi, backendGet, backendPost } from "./axios";
+import { backendApi, backendGet, backendPost, safeBackendData, safeApiCall } from "./axios";
 
 export const DASHBOARD_ENDPOINTS = {
   stats: "/dashboard/stats",
@@ -50,48 +50,46 @@ export interface DashboardActivityItem {
  * Fetch dashboard stats.
  */
 export async function fetchDashboardStats(): Promise<DashboardStat[]> {
-  const { data } = await backendGet<DashboardStat[]>(DASHBOARD_ENDPOINTS.stats);
-  return data;
+  const data = await safeBackendData(() => backendGet<DashboardStat[]>(DASHBOARD_ENDPOINTS.stats));
+  return data ?? [];
 }
 
 /**
  * Fetch active campaigns.
  */
 export async function fetchDashboardCampaigns(): Promise<DashboardCampaign[]> {
-  const { data } = await backendGet<DashboardCampaign[]>(DASHBOARD_ENDPOINTS.campaigns);
-  return data;
+  const data = await safeBackendData(() => backendGet<DashboardCampaign[]>(DASHBOARD_ENDPOINTS.campaigns));
+  return data ?? [];
 }
 
 /**
  * Fetch recent activity.
  */
 export async function fetchDashboardActivity(): Promise<DashboardActivityItem[]> {
-  const { data } = await backendGet<DashboardActivityItem[]>(DASHBOARD_ENDPOINTS.activity);
-  return data;
+  const data = await safeBackendData(() => backendGet<DashboardActivityItem[]>(DASHBOARD_ENDPOINTS.activity));
+  return data ?? [];
 }
 
 /**
  * Pause a campaign (optional – for "View details" / campaign actions).
  */
 export async function pauseCampaign(id: string): Promise<void> {
-  await backendPost(DASHBOARD_ENDPOINTS.pauseCampaign(id));
+  await safeApiCall(() => backendPost(DASHBOARD_ENDPOINTS.pauseCampaign(id)));
 }
 
 /**
  * Resume a campaign.
  */
 export async function resumeCampaign(id: string): Promise<void> {
-  await backendPost(DASHBOARD_ENDPOINTS.resumeCampaign(id));
+  await safeApiCall(() => backendPost(DASHBOARD_ENDPOINTS.resumeCampaign(id)));
 }
 
 /**
  * Run campaign (automation) once: apply to matching jobs up to daily limit.
  * Returns result with message to show in toast.
  */
-export async function runCampaign(id: string): Promise<DashboardRunResult> {
-  const { data } = await backendApi.post<DashboardRunResult>(
-    DASHBOARD_ENDPOINTS.runCampaign(id),
-    {}
+export async function runCampaign(id: string): Promise<DashboardRunResult | undefined> {
+  return safeBackendData(() =>
+    backendApi.post<DashboardRunResult>(DASHBOARD_ENDPOINTS.runCampaign(id), {})
   );
-  return data;
 }

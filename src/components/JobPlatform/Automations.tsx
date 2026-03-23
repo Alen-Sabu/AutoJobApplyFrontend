@@ -84,7 +84,7 @@ const Automations: React.FC = () => {
     setActionId(String(a.id));
     try {
       const result = await runAutomation(a.id);
-      toast.success(result.message);
+      if (result) toast.success(result.message);
       await loadAutomations();
     } catch {
       // error toast handled by axios
@@ -109,6 +109,7 @@ const Automations: React.FC = () => {
     setCreating(true);
     try {
       const created = await createAutomation(form);
+      if (!created) return;
       setAutomations((prev) => [...prev, created]);
       setForm({ name: "", targetTitles: "", locations: "", dailyLimit: 25, platforms: [], coverLetterTemplate: "" });
       showMsg("Automation created (paused). Start it from the list.");

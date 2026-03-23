@@ -98,7 +98,9 @@ const JobList: React.FC = () => {
           return next;
         });
       } else {
-        const { userJobId } = await saveJobToFavorites(job.id);
+        const saved = await saveJobToFavorites(job.id);
+        if (!saved) return;
+        const { userJobId } = saved;
         setSavedIds((prev) => new Set(prev).add(job.id));
         setSavedMap((prev) => {
           const next = new Map(prev);
@@ -131,7 +133,9 @@ const JobList: React.FC = () => {
     if (!attachModal) return;
     setActioningId(attachModal.id);
     try {
-      const { userJobId } = await attachJobToAutomation(attachModal.id, automationId);
+      const attached = await attachJobToAutomation(attachModal.id, automationId);
+      if (!attached) return;
+      const { userJobId } = attached;
       setSavedIds((prev) => new Set(prev).add(attachModal.id));
       setSavedMap((prev) => {
         const next = new Map(prev);

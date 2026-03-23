@@ -1,7 +1,7 @@
 /**
  * Profile API – GET/PUT /profiles/me with auth.
  */
-import { backendApi } from "./axios";
+import { backendApi, safeBackendData } from "./axios";
 
 export const PROFILE_ENDPOINTS = {
   get: "/profiles/me",
@@ -76,15 +76,19 @@ function toSnakePayload(data: Partial<ProfileData>): Record<string, unknown> {
   return out;
 }
 
-export async function fetchProfile(): Promise<ProfileData> {
-  const { data } = await backendApi.get<ProfileResponse>(PROFILE_ENDPOINTS.get);
+export async function fetchProfile(): Promise<ProfileData | undefined> {
+  const data = await safeBackendData(() => backendApi.get<ProfileResponse>(PROFILE_ENDPOINTS.get));
+  if (!data) return undefined;
   return mapResponseToProfile(data);
 }
 
-export async function saveProfile(data: Partial<ProfileData>): Promise<ProfileData> {
+export async function saveProfile(data: Partial<ProfileData>): Promise<ProfileData | undefined> {
   const payload = toSnakePayload(data);
-  const { data: res } = await backendApi.put<ProfileResponse>(PROFILE_ENDPOINTS.save, payload, {
-    toastSuccessMessage: "Profile saved.",
-  });
+  const res = await safeBackendData(() =>
+    backendApi.put<ProfileResponse>(PROFILE_ENDPOINTS.save, payload, {
+      toastSuccessMessage: "Profile saved.",
+    })
+  );
+  if (!res) return undefined;
   return mapResponseToProfile(res);
 }

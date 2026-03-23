@@ -52,6 +52,7 @@ export default function CompanySignupPage() {
         description: form.description || null,
         website: form.website || null,
       });
+      if (!res) return;
       if (typeof window !== "undefined") {
         localStorage.setItem("access_token", res.access_token);
         localStorage.setItem("crypgo_authed", "1");

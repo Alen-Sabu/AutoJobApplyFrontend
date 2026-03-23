@@ -45,6 +45,7 @@ function getErrorMessage(err: unknown): string {
   if (status === 401) return "Invalid email or password.";
   if (status === 403) return "You don't have permission to do this.";
   if (status === 404) return "Resource not found.";
+  if (status === 409) return "This action could not be completed.";
   if (status && status >= 500) return "Server error. Please try again later.";
   return (err as Error)?.message ?? "An error occurred.";
 }
@@ -131,5 +132,33 @@ export const backendPost = backendApi.post.bind(backendApi);
 export const backendPut = backendApi.put.bind(backendApi);
 export const backendPatch = backendApi.patch.bind(backendApi);
 export const backendDelete = backendApi.delete.bind(backendApi);
+
+/**
+ * Wraps backend axios calls that return `{ data: T }`.
+ * On failure the response interceptor already shows toast.error; this returns `undefined`
+ * instead of rejecting so UI code does not hit unhandled promise rejections.
+ */
+export async function safeBackendData<T>(
+  fn: () => Promise<{ data: T }>
+): Promise<T | undefined> {
+  try {
+    const res = await fn();
+    return res.data;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Wraps any async API call (e.g. void DELETE, or custom response shapes).
+ * On failure the interceptor already toasted; returns `undefined` instead of throwing.
+ */
+export async function safeApiCall<T>(fn: () => Promise<T>): Promise<T | undefined> {
+  try {
+    return await fn();
+  } catch {
+    return undefined;
+  }
+}
 
 export default api;

@@ -9,7 +9,7 @@
  *  - DELETE /user-jobs/{id}               → remove from saved jobs
  */
 
-import { backendApi } from "./axios";
+import { backendApi, safeBackendData, safeApiCall } from "./axios";
 
 export interface JobItem {
   id: number | string;
@@ -85,7 +85,8 @@ export async function fetchJobs(filters?: JobsFilters, skip = 0, limit = 100): P
   if (filters?.keyword) params.query = filters.keyword;
   if (filters?.location) params.location = filters.location;
 
-  const { data } = await backendApi.get<JobResponse[]>("/jobs", { params });
+  const data = await safeBackendData(() => backendApi.get<JobResponse[]>("/jobs", { params }));
+  if (data === undefined) return [];
   let list = data.map(mapJobToItem);
 
   if (filters?.remoteOnly) {
@@ -96,9 +97,12 @@ export async function fetchJobs(filters?: JobsFilters, skip = 0, limit = 100): P
 }
 
 export async function fetchSavedJobs(): Promise<JobItem[]> {
-  const { data } = await backendApi.get<UserJobWithJob[]>("/user-jobs", {
-    params: { status_filter: "saved", skip: 0, limit: 100 },
-  });
+  const data = await safeBackendData(() =>
+    backendApi.get<UserJobWithJob[]>("/user-jobs", {
+      params: { status_filter: "saved", skip: 0, limit: 100 },
+    })
+  );
+  if (data === undefined) return [];
   return data.map(mapUserJobToItem);
 }
 
@@ -106,13 +110,18 @@ export async function fetchSavedJobs(): Promise<JobItem[]> {
  * Save job to favorites (creates a UserJob row).
  * Returns the created/ existing user_job id so the caller can track it.
  */
-export async function saveJobToFavorites(jobId: string | number): Promise<{ userJobId: number }> {
+export async function saveJobToFavorites(
+  jobId: string | number
+): Promise<{ userJobId: number } | undefined> {
   const numericId = Number(jobId);
-  const { data } = await backendApi.post<UserJobWithJob>(
-    "/user-jobs",
-    { job_id: numericId },
-    { toastSuccessMessage: "Saved to favorites." },
+  const data = await safeBackendData(() =>
+    backendApi.post<UserJobWithJob>(
+      "/user-jobs",
+      { job_id: numericId },
+      { toastSuccessMessage: "Saved to favorites." },
+    )
   );
+  if (data === undefined) return undefined;
   return { userJobId: data.id };
 }
 
@@ -120,27 +129,35 @@ export async function saveJobToFavorites(jobId: string | number): Promise<{ user
  * Unsave job by its UserJob id.
  */
 export async function unsaveJob(userJobId: number): Promise<void> {
-  await backendApi.delete(`/user-jobs/${userJobId}`, {
-    toastSuccessMessage: "Removed from favorites.",
-  });
+  await safeApiCall(() =>
+    backendApi.delete(`/user-jobs/${userJobId}`, {
+      toastSuccessMessage: "Removed from favorites.",
+    })
+  );
 }
 
 /**
  * Apply once – ensure there's a UserJob, then mark it as submitted.
+ * On failure (e.g. 409 already applied), the axios interceptor shows an error toast;
+ * this function resolves without throwing so callers don't hit an unhandled runtime error.
  */
 export async function applyOnce(jobId: string | number, existingUserJobId?: number): Promise<void> {
   let userJobId = existingUserJobId;
   if (!userJobId) {
-    const created = await backendApi.post<UserJobWithJob>("/user-jobs", {
-      job_id: Number(jobId),
-    });
-    userJobId = created.data.id;
+    const created = await safeBackendData(() =>
+      backendApi.post<UserJobWithJob>("/user-jobs", {
+        job_id: Number(jobId),
+      })
+    );
+    if (created === undefined) return;
+    userJobId = created.id;
   }
-
-  await backendApi.post(
-    `/user-jobs/${userJobId}/submit`,
-    {},
-    { toastSuccessMessage: "Application submitted." },
+  await safeApiCall(() =>
+    backendApi.post(
+      `/user-jobs/${userJobId}/submit`,
+      {},
+      { toastSuccessMessage: "Application submitted." },
+    )
   );
 }
 
@@ -148,13 +165,23 @@ export async function applyOnce(jobId: string | number, existingUserJobId?: numb
  * Attach a job to an automation (adds to user's list linked to that automation; status saved).
  * User can then submit from the automation's jobs page or from here.
  */
-export async function attachJobToAutomation(jobId: string | number, automationId: string | number): Promise<{ userJobId: number }> {
-  const { data } = await backendApi.post<UserJobWithJob>("/user-jobs", {
-    job_id: Number(jobId),
-    automation_id: Number(automationId),
-  }, {
-    toastSuccessMessage: "Job attached to automation.",
-  });
+export async function attachJobToAutomation(
+  jobId: string | number,
+  automationId: string | number
+): Promise<{ userJobId: number } | undefined> {
+  const data = await safeBackendData(() =>
+    backendApi.post<UserJobWithJob>(
+      "/user-jobs",
+      {
+        job_id: Number(jobId),
+        automation_id: Number(automationId),
+      },
+      {
+        toastSuccessMessage: "Job attached to automation.",
+      }
+    )
+  );
+  if (data === undefined) return undefined;
   return { userJobId: data.id };
 }
 
@@ -162,10 +189,12 @@ export async function attachJobToAutomation(jobId: string | number, automationId
  * Submit a user_job (mark as applied). Use when you already have the user_job id.
  */
 export async function submitUserJob(userJobId: number): Promise<void> {
-  await backendApi.post(
-    `/user-jobs/${userJobId}/submit`,
-    {},
-    { toastSuccessMessage: "Application submitted." },
+  await safeApiCall(() =>
+    backendApi.post(
+      `/user-jobs/${userJobId}/submit`,
+      {},
+      { toastSuccessMessage: "Application submitted." },
+    )
   );
 }
 
@@ -173,9 +202,11 @@ export async function submitUserJob(userJobId: number): Promise<void> {
  * Fetch jobs linked to a specific automation (saved or applied).
  */
 export async function fetchJobsForAutomation(automationId: number): Promise<UserJobWithJob[]> {
-  const { data } = await backendApi.get<UserJobWithJob[]>(`/automations/${automationId}/jobs`, {
-    params: { skip: 0, limit: 200 },
-  });
-  return data;
+  const data = await safeBackendData(() =>
+    backendApi.get<UserJobWithJob[]>(`/automations/${automationId}/jobs`, {
+      params: { skip: 0, limit: 200 },
+    })
+  );
+  return data ?? [];
 }
 

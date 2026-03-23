@@ -1,7 +1,7 @@
 /**
  * Automations API – real backend integration.
  */
-import { backendApi } from "./axios";
+import { backendApi, safeBackendData, safeApiCall } from "./axios";
 
 const AUTOMATIONS_BASE = "/automations";
 
@@ -72,16 +72,18 @@ function mapAutomation(a: AutomationResponse): Automation {
 }
 
 export async function fetchAutomations(): Promise<Automation[]> {
-  const { data } = await backendApi.get<AutomationResponse[]>(AUTOMATIONS_BASE);
+  const data = await safeBackendData(() => backendApi.get<AutomationResponse[]>(AUTOMATIONS_BASE));
+  if (data === undefined) return [];
   return data.map(mapAutomation);
 }
 
-export async function fetchAutomation(id: number): Promise<Automation> {
-  const { data } = await backendApi.get<AutomationResponse>(`${AUTOMATIONS_BASE}/${id}`);
+export async function fetchAutomation(id: number): Promise<Automation | undefined> {
+  const data = await safeBackendData(() => backendApi.get<AutomationResponse>(`${AUTOMATIONS_BASE}/${id}`));
+  if (data === undefined) return undefined;
   return mapAutomation(data);
 }
 
-export async function createAutomation(payload: CreateAutomationPayload): Promise<Automation> {
+export async function createAutomation(payload: CreateAutomationPayload): Promise<Automation | undefined> {
   const body = {
     name: payload.name,
     target_titles: payload.targetTitles,
@@ -90,27 +92,30 @@ export async function createAutomation(payload: CreateAutomationPayload): Promis
     platforms: payload.platforms,
     cover_letter_template: payload.coverLetterTemplate,
   };
-  const { data } = await backendApi.post<AutomationResponse>(AUTOMATIONS_BASE, body, {
-    toastSuccessMessage: "Automation created.",
-  });
+  const data = await safeBackendData(() =>
+    backendApi.post<AutomationResponse>(AUTOMATIONS_BASE, body, {
+      toastSuccessMessage: "Automation created.",
+    })
+  );
+  if (data === undefined) return undefined;
   return mapAutomation(data);
 }
 
-export async function pauseAutomation(id: number): Promise<Automation> {
-  const { data } = await backendApi.post<AutomationResponse>(`${AUTOMATIONS_BASE}/${id}/pause`, {});
+export async function pauseAutomation(id: number): Promise<Automation | undefined> {
+  const data = await safeBackendData(() => backendApi.post<AutomationResponse>(`${AUTOMATIONS_BASE}/${id}/pause`, {}));
+  if (data === undefined) return undefined;
   return mapAutomation(data);
 }
 
-export async function resumeAutomation(id: number): Promise<Automation> {
-  const { data } = await backendApi.post<AutomationResponse>(`${AUTOMATIONS_BASE}/${id}/resume`, {});
+export async function resumeAutomation(id: number): Promise<Automation | undefined> {
+  const data = await safeBackendData(() => backendApi.post<AutomationResponse>(`${AUTOMATIONS_BASE}/${id}/resume`, {}));
+  if (data === undefined) return undefined;
   return mapAutomation(data);
 }
 
 /**
  * Run automation once: find matching jobs and apply up to daily limit.
- * Returns result with message to show in toast (e.g. "Applied to 5 jobs (only 5 similar jobs available).").
  */
-export async function runAutomation(id: number): Promise<AutomationRunResult> {
-  const { data } = await backendApi.post<AutomationRunResult>(`${AUTOMATIONS_BASE}/${id}/run`, {});
-  return data;
+export async function runAutomation(id: number): Promise<AutomationRunResult | undefined> {
+  return safeBackendData(() => backendApi.post<AutomationRunResult>(`${AUTOMATIONS_BASE}/${id}/run`, {}));
 }

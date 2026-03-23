@@ -20,9 +20,9 @@ export default function CompanyDashboard() {
           fetchCompanyJobs(),
           fetchCompanyStats(),
         ]);
-        setProfile(profileRes);
+        setProfile(profileRes ?? null);
         setJobs(jobsRes);
-        setTotalApplicants(statsRes.total_applicants);
+        setTotalApplicants(statsRes?.total_applicants ?? null);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load dashboard");
       } finally {

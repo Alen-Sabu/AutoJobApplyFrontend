@@ -79,6 +79,7 @@ export default function AdminJobs() {
         jobUrl: newJobUrl.trim() || undefined,
         status: "pending",
       });
+      if (!job) return;
       setJobs((prev) => [job, ...prev]);
       setCreating(false);
       setNewTitle("");
@@ -118,6 +119,7 @@ export default function AdminJobs() {
         description: editDescription.trim() || undefined,
         jobUrl: editJobUrl.trim() || undefined,
       });
+      if (!updated) return;
       setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
       setEditingId(null);
       setEditTitle("");

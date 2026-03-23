@@ -39,10 +39,14 @@ const Settings: React.FC = () => {
     (async () => {
       try {
         const res = await fetchSettings();
-        setData(res);
-        setDisplayName(res.displayName);
-        setUsername(res.username);
-        setEmail(res.email);
+        if (!res) {
+          setError("Failed to load settings");
+        } else {
+          setData(res);
+          setDisplayName(res.displayName);
+          setUsername(res.username);
+          setEmail(res.email);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load settings");
       } finally {
@@ -61,6 +65,7 @@ const Settings: React.FC = () => {
     setMessage(null);
     try {
       const res = await saveAccount({ displayName, username });
+      if (!res) return;
       setData(res);
       setDisplayName(res.displayName);
       setUsername(res.username);
@@ -77,6 +82,7 @@ const Settings: React.FC = () => {
     setMessage(null);
     try {
       const res = await updateEmail(email);
+      if (!res) return;
       setData(res);
       setEmail(res.email);
       showMsg("Email updated");

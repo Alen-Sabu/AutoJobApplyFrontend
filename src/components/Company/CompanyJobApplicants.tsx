@@ -45,7 +45,7 @@ export default function CompanyJobApplicants({ jobId }: { jobId: string }) {
           fetchCompanyJob(id),
           fetchJobApplicants(id),
         ]);
-        setJob(jobRes);
+        setJob(jobRes ?? null);
         setApplicants(applicantsRes);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load applicants");

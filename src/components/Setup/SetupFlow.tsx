@@ -96,6 +96,7 @@ export default function SetupFlow() {
     setError(null);
     try {
       const res = await uploadResume(resumeFile);
+      if (!res) return;
       setUploadedResumeName(res.fileName);
       setResumeUploaded(true);
       setError(null);

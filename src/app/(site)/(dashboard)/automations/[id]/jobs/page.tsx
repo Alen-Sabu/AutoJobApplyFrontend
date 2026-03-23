@@ -52,7 +52,7 @@ export default function AutomationJobsPage() {
     Promise.all([fetchAutomation(id), fetchJobsForAutomation(id)])
       .then(([auto, list]) => {
         if (!cancelled) {
-          setAutomation(auto);
+          setAutomation(auto ?? null);
           setJobs(list);
         }
       })

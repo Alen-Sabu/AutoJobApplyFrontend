@@ -2,7 +2,7 @@
  * Setup API – onboarding: personal details, resume upload, completion.
  * Uses backend API with auth.
  */
-import { backendApi } from "./axios";
+import { backendApi, safeBackendData, safeApiCall } from "./axios";
 
 const SETUP_BASE = "/setup";
 
@@ -99,7 +99,8 @@ function personalToBackend(p: Partial<SetupPersonalDetails>): Record<string, str
 }
 
 export async function fetchSetupStatus(): Promise<SetupStatus> {
-  const { data } = await backendApi.get<SetupStatusResponse>(`${SETUP_BASE}/status`);
+  const data = await safeBackendData(() => backendApi.get<SetupStatusResponse>(`${SETUP_BASE}/status`));
+  if (!data) return { complete: false, data: null };
   return {
     complete: data.complete,
     data: mapDataToFrontend(data.data),
@@ -108,29 +109,33 @@ export async function fetchSetupStatus(): Promise<SetupStatus> {
 
 export async function savePersonalDetails(
   personal: Partial<SetupPersonalDetails>
-): Promise<SetupData> {
+): Promise<SetupData | undefined> {
   const payload = personalToBackend(personal);
-  const { data } = await backendApi.put<SetupDataResponse>(`${SETUP_BASE}/personal`, payload, {
-    toastSuccessMessage: "Personal details saved.",
-  });
+  const data = await safeBackendData(() =>
+    backendApi.put<SetupDataResponse>(`${SETUP_BASE}/personal`, payload, {
+      toastSuccessMessage: "Personal details saved.",
+    })
+  );
+  if (!data) return undefined;
   return mapDataToFrontend(data)!;
 }
 
 /**
  * Upload or replace resume. Same API for first upload and changing resume.
- * @param file - PDF or DOC/DOCX file (max 5MB)
- * @param successMessage - Optional toast message (default: "Resume uploaded.")
  */
 export async function uploadResume(
   file: File,
   successMessage: string = "Resume uploaded."
-): Promise<SetupResume> {
+): Promise<SetupResume | undefined> {
   const form = new FormData();
   form.append("file", file);
-  const { data } = await backendApi.post<SetupResumeResponse>(`${SETUP_BASE}/resume`, form, {
-    headers: { "Content-Type": "multipart/form-data" },
-    toastSuccessMessage: successMessage,
-  });
+  const data = await safeBackendData(() =>
+    backendApi.post<SetupResumeResponse>(`${SETUP_BASE}/resume`, form, {
+      headers: { "Content-Type": "multipart/form-data" },
+      toastSuccessMessage: successMessage,
+    })
+  );
+  if (!data) return undefined;
   return {
     fileName: data.fileName,
     uploadedAt: data.uploadedAt,
@@ -139,24 +144,26 @@ export async function uploadResume(
 }
 
 export async function completeSetup(): Promise<void> {
-  await backendApi.post(`${SETUP_BASE}/complete`, {}, {
-    toastSuccessMessage: "Setup complete. Welcome!",
-  });
+  await safeApiCall(() =>
+    backendApi.post(`${SETUP_BASE}/complete`, {}, {
+      toastSuccessMessage: "Setup complete. Welcome!",
+    })
+  );
 }
 
 /**
  * Download the user's resume (authenticated). Returns blob for PDF/view or download.
  */
-export async function downloadResume(): Promise<Blob> {
-  const { data } = await backendApi.get<Blob>(`${SETUP_BASE}/resume`, {
-    responseType: "blob",
-  });
-  return data;
+export async function downloadResume(): Promise<Blob | undefined> {
+  return safeBackendData(() =>
+    backendApi.get<Blob>(`${SETUP_BASE}/resume`, {
+      responseType: "blob",
+    })
+  );
 }
 
 /**
  * Base URL for setup resume (for building download link with auth).
- * Prefer using downloadResume() and creating a blob URL for viewing.
  */
 export function getResumeDownloadApiPath(): string {
   return SETUP_BASE + "/resume";

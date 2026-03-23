@@ -32,7 +32,8 @@ export default function AdminSettings() {
     (async () => {
       try {
         const data = await fetchAdminSettings();
-        setSettings(data);
+        if (!data) setError("Failed to load settings");
+        else setSettings(data);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load settings");
       } finally {
@@ -53,6 +54,7 @@ export default function AdminSettings() {
     setMessage(null);
     try {
       const updated = await saveAdminSettings(settings);
+      if (!updated) return;
       setSettings(updated);
       setMessage("Settings saved.");
       setTimeout(() => setMessage(null), 3000);

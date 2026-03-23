@@ -22,7 +22,8 @@ const SignUp = () => {
     const full_name = (form.querySelector('[name="name"]') as HTMLInputElement)?.value?.trim() || undefined;
 
     try {
-      await register({ email, password, full_name: full_name ?? null });
+      const created = await register({ email, password, full_name: full_name ?? null });
+      if (!created) return;
       router.push("/signin");
     } catch {
       // Toast shown by axios interceptor with API error message

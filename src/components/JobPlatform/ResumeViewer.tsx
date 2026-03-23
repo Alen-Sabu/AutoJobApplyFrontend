@@ -37,6 +37,10 @@ export default function ResumeViewer() {
         });
         const blob = await downloadResume();
         if (cancelled) return;
+        if (!blob) {
+          if (!cancelled) setError("Failed to load resume");
+          return;
+        }
         const lower = (status.data.resume.fileName || "").toLowerCase();
         const isPdfFile = lower.endsWith(".pdf");
         // Ensure PDF blob has correct type so the browser will render it in iframe/object

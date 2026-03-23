@@ -30,8 +30,10 @@ export default function CompanyJobCreate() {
     (async () => {
       try {
         const profile = await fetchCompanyProfile();
-        setCompanyName(profile.company_name);
-        setForm((f) => ({ ...f, company: profile.company_name }));
+        if (profile) {
+          setCompanyName(profile.company_name);
+          setForm((f) => ({ ...f, company: profile.company_name }));
+        }
       } catch {
         setForm((f) => ({ ...f, company: "My Company" }));
       } finally {
@@ -44,7 +46,7 @@ export default function CompanyJobCreate() {
     e.preventDefault();
     setLoading(true);
     try {
-      await createCompanyJob({
+      const created = await createCompanyJob({
         title: form.title,
         company: form.company || companyName,
         location: form.location || null,
@@ -54,6 +56,7 @@ export default function CompanyJobCreate() {
         job_type: form.job_type || null,
         source: form.source || null,
       });
+      if (!created) return;
       router.push("/company/jobs");
     } catch {
       // toast from axios

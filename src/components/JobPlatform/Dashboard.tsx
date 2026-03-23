@@ -133,7 +133,7 @@ const Dashboard: React.FC = () => {
     setActionId(campaign.id);
     try {
       const result = await apiRunCampaign(campaign.id);
-      toast.success(result.message);
+      if (result) toast.success(result.message);
       await loadData();
     } catch {
       // error toast handled by axios

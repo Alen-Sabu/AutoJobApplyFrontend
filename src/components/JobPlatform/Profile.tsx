@@ -30,17 +30,21 @@ const Profile: React.FC = () => {
       try {
         const res = await fetchProfile();
         if (!cancelled) {
-          setData(res);
-          setForm({
-            fullName: res.fullName,
-            headline: res.headline,
-            primaryLocation: res.primaryLocation,
-            linkedInUrl: res.linkedInUrl,
-            yearsExperience: res.yearsExperience,
-            compensationCurrency: res.compensationCurrency,
-            topSkills: res.topSkills,
-            coverLetterTone: res.coverLetterTone,
-          });
+          if (!res) {
+            setError("Failed to load profile");
+          } else {
+            setData(res);
+            setForm({
+              fullName: res.fullName,
+              headline: res.headline,
+              primaryLocation: res.primaryLocation,
+              linkedInUrl: res.linkedInUrl,
+              yearsExperience: res.yearsExperience,
+              compensationCurrency: res.compensationCurrency,
+              topSkills: res.topSkills,
+              coverLetterTone: res.coverLetterTone,
+            });
+          }
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load profile");
@@ -64,6 +68,7 @@ const Profile: React.FC = () => {
     setResumeLoading(true);
     try {
       const blob = await downloadResume();
+      if (!blob) return;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -82,7 +87,7 @@ const Profile: React.FC = () => {
     setResumeUploading(true);
     uploadResume(file, "Resume updated.")
       .then((res) => {
-        setSetupResume({ fileName: res.fileName, uploadedAt: res.uploadedAt, url: res.url });
+        if (res) setSetupResume({ fileName: res.fileName, uploadedAt: res.uploadedAt, url: res.url });
       })
       .finally(() => setResumeUploading(false));
   };
@@ -91,7 +96,8 @@ const Profile: React.FC = () => {
     setSaving(true);
     setError(null);
     try {
-      await saveProfile(form);
+      const updated = await saveProfile(form);
+      if (!updated) return;
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e) {

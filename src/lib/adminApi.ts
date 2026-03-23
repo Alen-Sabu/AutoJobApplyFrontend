@@ -6,7 +6,7 @@
  * use mock data and can be swapped to real endpoints later.
  */
 
-import { backendApi } from "./axios";
+import { backendApi, safeBackendData, safeApiCall } from "./axios";
 const ADMIN_PREFIX = "/admin";
 
 export const ADMIN_ENDPOINTS = {
@@ -131,18 +131,18 @@ export interface AdminAuditEntry {
 
 // —— Dashboard ——
 export async function fetchAdminStats(): Promise<AdminStatCard[]> {
-  const { data } = await backendApi.get<AdminStatCard[]>(ADMIN_ENDPOINTS.stats);
-  return data;
+  const data = await safeBackendData(() => backendApi.get<AdminStatCard[]>(ADMIN_ENDPOINTS.stats));
+  return data ?? [];
 }
 
 export async function fetchAdminActivity(): Promise<AdminActivityItem[]> {
-  const { data } = await backendApi.get<AdminActivityItem[]>(ADMIN_ENDPOINTS.activity);
-  return data;
+  const data = await safeBackendData(() => backendApi.get<AdminActivityItem[]>(ADMIN_ENDPOINTS.activity));
+  return data ?? [];
 }
 
 export async function fetchAdminAlerts(): Promise<AdminAlert[]> {
-  const { data } = await backendApi.get<AdminAlert[]>(ADMIN_ENDPOINTS.alerts);
-  return data;
+  const data = await safeBackendData(() => backendApi.get<AdminAlert[]>(ADMIN_ENDPOINTS.alerts));
+  return data ?? [];
 }
 
 // —— Users ——
@@ -151,23 +151,29 @@ export async function fetchAdminUsers(params?: { search?: string; status?: strin
   if (params?.search) query.search = params.search;
   if (params?.status && params.status !== "all") query.status = params.status;
 
-  const { data } = await backendApi.get<AdminUser[]>(ADMIN_ENDPOINTS.users, { params: query });
-  return data;
+  const data = await safeBackendData(() =>
+    backendApi.get<AdminUser[]>(ADMIN_ENDPOINTS.users, { params: query })
+  );
+  return data ?? [];
 }
 
 export async function suspendUser(userId: string | number): Promise<void> {
-  await backendApi.post(
-    ADMIN_ENDPOINTS.userSuspend(String(userId)),
-    {},
-    { toastSuccessMessage: "User suspended." },
+  await safeApiCall(() =>
+    backendApi.post(
+      ADMIN_ENDPOINTS.userSuspend(String(userId)),
+      {},
+      { toastSuccessMessage: "User suspended." },
+    )
   );
 }
 
 export async function activateUser(userId: string | number): Promise<void> {
-  await backendApi.post(
-    ADMIN_ENDPOINTS.userActivate(String(userId)),
-    {},
-    { toastSuccessMessage: "User activated." },
+  await safeApiCall(() =>
+    backendApi.post(
+      ADMIN_ENDPOINTS.userActivate(String(userId)),
+      {},
+      { toastSuccessMessage: "User activated." },
+    )
   );
 }
 
@@ -177,8 +183,10 @@ export async function fetchAdminJobs(params?: { search?: string; status?: string
   if (params?.search) query.search = params.search;
   if (params?.status && params.status !== "all") query.status = params.status;
 
-  const { data } = await backendApi.get<AdminJob[]>(ADMIN_ENDPOINTS.jobs, { params: query });
-  return data;
+  const data = await safeBackendData(() =>
+    backendApi.get<AdminJob[]>(ADMIN_ENDPOINTS.jobs, { params: query })
+  );
+  return data ?? [];
 }
 
 export async function createAdminJob(payload: {
@@ -191,13 +199,12 @@ export async function createAdminJob(payload: {
   jobUrl?: string;
   source?: string;
   status?: "pending" | "approved" | "rejected";
-}): Promise<AdminJob> {
-  const { data } = await backendApi.post<AdminJob>(
-    ADMIN_ENDPOINTS.jobs,
-    payload,
-    { toastSuccessMessage: "Job created." },
+}): Promise<AdminJob | undefined> {
+  return safeBackendData(() =>
+    backendApi.post<AdminJob>(ADMIN_ENDPOINTS.jobs, payload, {
+      toastSuccessMessage: "Job created.",
+    })
   );
-  return data;
 }
 
 export async function updateAdminJob(
@@ -213,35 +220,39 @@ export async function updateAdminJob(
     source?: string;
     status?: "pending" | "approved" | "rejected";
   },
-): Promise<AdminJob> {
-  const { data } = await backendApi.put<AdminJob>(
-    `${ADMIN_ENDPOINTS.jobs}/${id}`,
-    payload,
-    { toastSuccessMessage: "Job updated." },
+): Promise<AdminJob | undefined> {
+  return safeBackendData(() =>
+    backendApi.put<AdminJob>(`${ADMIN_ENDPOINTS.jobs}/${id}`, payload, {
+      toastSuccessMessage: "Job updated.",
+    })
   );
-  return data;
 }
 
 export async function deleteAdminJob(id: string | number): Promise<void> {
-  await backendApi.delete(
-    `${ADMIN_ENDPOINTS.jobs}/${id}`,
-    { toastSuccessMessage: "Job deleted." },
+  await safeApiCall(() =>
+    backendApi.delete(`${ADMIN_ENDPOINTS.jobs}/${id}`, {
+      toastSuccessMessage: "Job deleted.",
+    })
   );
 }
 
 export async function approveJob(jobId: string | number): Promise<void> {
-  await backendApi.post(
-    ADMIN_ENDPOINTS.jobApprove(String(jobId)),
-    {},
-    { toastSuccessMessage: "Job approved." },
+  await safeApiCall(() =>
+    backendApi.post(
+      ADMIN_ENDPOINTS.jobApprove(String(jobId)),
+      {},
+      { toastSuccessMessage: "Job approved." },
+    )
   );
 }
 
 export async function rejectJob(jobId: string | number): Promise<void> {
-  await backendApi.post(
-    ADMIN_ENDPOINTS.jobReject(String(jobId)),
-    {},
-    { toastSuccessMessage: "Job rejected." },
+  await safeApiCall(() =>
+    backendApi.post(
+      ADMIN_ENDPOINTS.jobReject(String(jobId)),
+      {},
+      { toastSuccessMessage: "Job rejected." },
+    )
   );
 }
 
@@ -284,21 +295,27 @@ function mapAdminAutomation(a: AdminAutomationResponse): AdminAutomation {
 }
 
 export async function fetchAdminAutomations(params?: { search?: string }): Promise<AdminAutomation[]> {
-  const { data } = await backendApi.get<AdminAutomationResponse[]>(ADMIN_ENDPOINTS.automations, {
-    params: params?.search ? { search: params.search } : undefined,
-  });
+  const data = await safeBackendData(() =>
+    backendApi.get<AdminAutomationResponse[]>(ADMIN_ENDPOINTS.automations, {
+      params: params?.search ? { search: params.search } : undefined,
+    })
+  );
+  if (!data) return [];
   return data.map(mapAdminAutomation);
 }
 
-export async function fetchAdminAutomation(id: string | number): Promise<AdminAutomation> {
-  const { data } = await backendApi.get<AdminAutomationResponse>(`${ADMIN_ENDPOINTS.automations}/${id}`);
+export async function fetchAdminAutomation(id: string | number): Promise<AdminAutomation | undefined> {
+  const data = await safeBackendData(() =>
+    backendApi.get<AdminAutomationResponse>(`${ADMIN_ENDPOINTS.automations}/${id}`)
+  );
+  if (!data) return undefined;
   return mapAdminAutomation(data);
 }
 
 export async function updateAdminAutomation(
   id: string | number,
   payload: AdminAutomationUpdatePayload,
-): Promise<AdminAutomation> {
+): Promise<AdminAutomation | undefined> {
   const body: Record<string, unknown> = {};
   if (payload.name !== undefined) body.name = payload.name;
   if (payload.target_titles !== undefined) body.target_titles = payload.target_titles;
@@ -308,27 +325,30 @@ export async function updateAdminAutomation(
   if (payload.cover_letter_template !== undefined) body.cover_letter_template = payload.cover_letter_template;
   if (payload.status !== undefined) body.status = payload.status;
 
-  const { data } = await backendApi.put<AdminAutomationResponse>(
-    `${ADMIN_ENDPOINTS.automations}/${id}`,
-    body,
-    { toastSuccessMessage: "Automation updated." },
+  const data = await safeBackendData(() =>
+    backendApi.put<AdminAutomationResponse>(
+      `${ADMIN_ENDPOINTS.automations}/${id}`,
+      body,
+      { toastSuccessMessage: "Automation updated." },
+    )
   );
+  if (!data) return undefined;
   return mapAdminAutomation(data);
 }
 
-export async function adminPauseAutomation(id: string | number): Promise<AdminAutomation> {
-  const { data } = await backendApi.post<AdminAutomationResponse>(
-    ADMIN_ENDPOINTS.automationPause(String(id)),
-    {},
+export async function adminPauseAutomation(id: string | number): Promise<AdminAutomation | undefined> {
+  const data = await safeBackendData(() =>
+    backendApi.post<AdminAutomationResponse>(ADMIN_ENDPOINTS.automationPause(String(id)), {})
   );
+  if (!data) return undefined;
   return mapAdminAutomation(data);
 }
 
-export async function adminResumeAutomation(id: string | number): Promise<AdminAutomation> {
-  const { data } = await backendApi.post<AdminAutomationResponse>(
-    ADMIN_ENDPOINTS.automationResume(String(id)),
-    {},
+export async function adminResumeAutomation(id: string | number): Promise<AdminAutomation | undefined> {
+  const data = await safeBackendData(() =>
+    backendApi.post<AdminAutomationResponse>(ADMIN_ENDPOINTS.automationResume(String(id)), {})
   );
+  if (!data) return undefined;
   return mapAdminAutomation(data);
 }
 
@@ -373,12 +393,17 @@ function mapAdminSettings(r: AdminSiteSettingsResponse): AdminSiteSettings {
   };
 }
 
-export async function fetchAdminSettings(): Promise<AdminSiteSettings> {
-  const { data } = await backendApi.get<AdminSiteSettingsResponse>(ADMIN_ENDPOINTS.settings);
+export async function fetchAdminSettings(): Promise<AdminSiteSettings | undefined> {
+  const data = await safeBackendData(() =>
+    backendApi.get<AdminSiteSettingsResponse>(ADMIN_ENDPOINTS.settings)
+  );
+  if (!data) return undefined;
   return mapAdminSettings(data);
 }
 
-export async function saveAdminSettings(settings: Partial<AdminSiteSettings>): Promise<AdminSiteSettings> {
+export async function saveAdminSettings(
+  settings: Partial<AdminSiteSettings>
+): Promise<AdminSiteSettings | undefined> {
   const body: AdminSiteSettingsResponse = {
     maintenance_mode: settings.maintenanceMode ?? false,
     new_user_registration: settings.newUserRegistration ?? true,
@@ -387,11 +412,12 @@ export async function saveAdminSettings(settings: Partial<AdminSiteSettings>): P
     site_name: settings.siteName ?? "CrypGo",
     support_email: settings.supportEmail ?? "support@crypgo.com",
   };
-  const { data } = await backendApi.put<AdminSiteSettingsResponse>(
-    ADMIN_ENDPOINTS.settings,
-    body,
-    { toastSuccessMessage: "Settings saved." },
+  const data = await safeBackendData(() =>
+    backendApi.put<AdminSiteSettingsResponse>(ADMIN_ENDPOINTS.settings, body, {
+      toastSuccessMessage: "Settings saved.",
+    })
   );
+  if (!data) return undefined;
   return mapAdminSettings(data);
 }
 
@@ -401,8 +427,10 @@ export async function fetchAdminAudit(params?: { search?: string; action?: strin
   if (params?.search) query.search = params.search;
   if (params?.action) query.action = params.action;
 
-  const { data } = await backendApi.get<AdminAuditEntry[]>(ADMIN_ENDPOINTS.audit, {
-    params: Object.keys(query).length ? query : undefined,
-  });
-  return data;
+  const data = await safeBackendData(() =>
+    backendApi.get<AdminAuditEntry[]>(ADMIN_ENDPOINTS.audit, {
+      params: Object.keys(query).length ? query : undefined,
+    })
+  );
+  return data ?? [];
 }
