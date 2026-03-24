@@ -20,6 +20,8 @@ export const ADMIN_ENDPOINTS = {
   jobs: `${ADMIN_PREFIX}/jobs`,
   jobApprove: (id: string) => `${ADMIN_PREFIX}/jobs/${id}/approve`,
   jobReject: (id: string) => `${ADMIN_PREFIX}/jobs/${id}/reject`,
+  applications: `${ADMIN_PREFIX}/applications`,
+  applicationStatus: (id: string) => `${ADMIN_PREFIX}/applications/${id}/status`,
   automations: `${ADMIN_PREFIX}/automations`,
   automationPause: (id: string) => `${ADMIN_PREFIX}/automations/${id}/pause`,
   automationResume: (id: string) => `${ADMIN_PREFIX}/automations/${id}/resume`,
@@ -92,6 +94,36 @@ export interface AdminAutomation {
   cover_letter_template?: string | null;
   created_at?: string;
   updated_at?: string | null;
+}
+
+export type AdminApplicationStatus =
+  | "saved"
+  | "draft"
+  | "submitted"
+  | "reviewing"
+  | "interview"
+  | "rejected"
+  | "accepted"
+  | "withdrawn";
+
+export interface AdminApplication {
+  id: number;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  jobId: number;
+  jobTitle: string;
+  jobCompany: string;
+  jobLocation?: string | null;
+  jobType?: string | null;
+  status: AdminApplicationStatus;
+  automationId?: number | null;
+  notes?: string | null;
+  resumePath?: string | null;
+  coverLetterPath?: string | null;
+  appliedAt?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
 }
 
 export interface AdminAutomationUpdatePayload {
@@ -254,6 +286,88 @@ export async function rejectJob(jobId: string | number): Promise<void> {
       { toastSuccessMessage: "Job rejected." },
     )
   );
+}
+
+// —— Applications ——
+interface AdminApplicationResponse {
+  id: number;
+  user_id: number;
+  user_name: string;
+  user_email: string;
+  job_id: number;
+  job_title: string;
+  job_company: string;
+  job_location?: string | null;
+  job_type?: string | null;
+  status: AdminApplicationStatus;
+  automation_id?: number | null;
+  notes?: string | null;
+  resume_path?: string | null;
+  cover_letter_path?: string | null;
+  applied_at?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+function mapAdminApplication(a: AdminApplicationResponse): AdminApplication {
+  return {
+    id: a.id,
+    userId: a.user_id,
+    userName: a.user_name,
+    userEmail: a.user_email,
+    jobId: a.job_id,
+    jobTitle: a.job_title,
+    jobCompany: a.job_company,
+    jobLocation: a.job_location,
+    jobType: a.job_type,
+    status: a.status,
+    automationId: a.automation_id,
+    notes: a.notes,
+    resumePath: a.resume_path,
+    coverLetterPath: a.cover_letter_path,
+    appliedAt: a.applied_at,
+    createdAt: a.created_at,
+    updatedAt: a.updated_at,
+  };
+}
+
+export async function fetchAdminApplications(params?: {
+  search?: string;
+  status?: AdminApplicationStatus | "all";
+  userId?: number;
+  skip?: number;
+  limit?: number;
+}): Promise<AdminApplication[]> {
+  const query: Record<string, string | number> = {
+    skip: params?.skip ?? 0,
+    limit: params?.limit ?? 200,
+  };
+  if (params?.search) query.search = params.search;
+  if (params?.status && params.status !== "all") query.status = params.status;
+  if (typeof params?.userId === "number") query.user_id = params.userId;
+
+  const data = await safeBackendData(() =>
+    backendApi.get<AdminApplicationResponse[]>(ADMIN_ENDPOINTS.applications, {
+      params: query,
+    })
+  );
+  if (!data) return [];
+  return data.map(mapAdminApplication);
+}
+
+export async function updateAdminApplicationStatus(
+  applicationId: string | number,
+  status: AdminApplicationStatus,
+): Promise<AdminApplication | undefined> {
+  const data = await safeBackendData(() =>
+    backendApi.put<AdminApplicationResponse>(
+      ADMIN_ENDPOINTS.applicationStatus(String(applicationId)),
+      { status },
+      { toastSuccessMessage: "Application status updated." },
+    )
+  );
+  if (!data) return undefined;
+  return mapAdminApplication(data);
 }
 
 // —— Automations ——
