@@ -106,6 +106,15 @@ export async function fetchSavedJobs(): Promise<JobItem[]> {
   return data.map(mapUserJobToItem);
 }
 
+export async function fetchMyApplications(statusFilter?: string): Promise<UserJobWithJob[]> {
+  const data = await safeBackendData(() =>
+    backendApi.get<UserJobWithJob[]>('/user-jobs/applications', {
+      params: { status_filter: statusFilter, skip: 0, limit: 200 },
+    })
+  );
+  return data ?? [];
+}
+
 /**
  * Save job to favorites (creates a UserJob row).
  * Returns the created/ existing user_job id so the caller can track it.
@@ -116,8 +125,8 @@ export async function saveJobToFavorites(
   const numericId = Number(jobId);
   const data = await safeBackendData(() =>
     backendApi.post<UserJobWithJob>(
-      "/user-jobs",
-      { job_id: numericId },
+      "/user-jobs/save",
+      { job_id: numericId, status: "saved" },
       { toastSuccessMessage: "Saved to favorites." },
     )
   );
@@ -137,25 +146,15 @@ export async function unsaveJob(userJobId: number): Promise<void> {
 }
 
 /**
- * Apply once – ensure there's a UserJob, then mark it as submitted.
+ * Apply once via dedicated single-job apply endpoint.
  * On failure (e.g. 409 already applied), the axios interceptor shows an error toast;
  * this function resolves without throwing so callers don't hit an unhandled runtime error.
  */
-export async function applyOnce(jobId: string | number, existingUserJobId?: number): Promise<void> {
-  let userJobId = existingUserJobId;
-  if (!userJobId) {
-    const created = await safeBackendData(() =>
-      backendApi.post<UserJobWithJob>("/user-jobs", {
-        job_id: Number(jobId),
-      })
-    );
-    if (created === undefined) return;
-    userJobId = created.id;
-  }
+export async function applyOnce(jobId: string | number, _existingUserJobId?: number): Promise<void> {
   await safeApiCall(() =>
     backendApi.post(
-      `/user-jobs/${userJobId}/submit`,
-      {},
+      "/user-jobs/apply",
+      { job_id: Number(jobId) },
       { toastSuccessMessage: "Application submitted." },
     )
   );
@@ -171,10 +170,11 @@ export async function attachJobToAutomation(
 ): Promise<{ userJobId: number } | undefined> {
   const data = await safeBackendData(() =>
     backendApi.post<UserJobWithJob>(
-      "/user-jobs",
+      "/user-jobs/save",
       {
         job_id: Number(jobId),
         automation_id: Number(automationId),
+        status: "saved",
       },
       {
         toastSuccessMessage: "Job attached to automation.",

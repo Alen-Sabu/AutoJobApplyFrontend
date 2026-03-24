@@ -10,7 +10,7 @@ const ADMIN_PATH = "/admin";
 /** Company area: no site navbar/footer (signin, signup, dashboard, jobs, etc.) */
 const COMPANY_PATH = "/company";
 /** User section: dashboard and app pages — show Header, no Footer after login */
-const USER_SECTION_PATHS = ["/dashboard", "/profile", "/resume", "/settings", "/jobs", "/automations", "/playbooks", "/setup"];
+const USER_SECTION_PATHS = ["/dashboard", "/applications", "/profile", "/resume", "/settings", "/jobs", "/automations", "/playbooks", "/setup"];
 
 export default function ConditionalSiteLayout({
   children,

@@ -9,6 +9,7 @@ import Logo from "@/components/Layout/Header/Logo";
 import DashboardFooter from "@/components/Layout/DashboardFooter";
 import {
   LayoutDashboard,
+  ClipboardList,
   User,
   Settings,
   Briefcase,
@@ -23,6 +24,7 @@ import {
 
 const navIcons: Record<string, React.ReactNode> = {
   Dashboard: <LayoutDashboard className="h-4 w-4" />,
+  Applications: <ClipboardList className="h-4 w-4" />,
   Profile: <User className="h-4 w-4" />,
   Resume: <FileText className="h-4 w-4" />,
   Setup: <ShieldCheck className="h-4 w-4" />,
